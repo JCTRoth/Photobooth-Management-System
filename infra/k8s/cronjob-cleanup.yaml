@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: photobooth-gdpr-cleanup
+  namespace: photobooth
+spec:
+  schedule: "0 3 * * *"  # Run at 3 AM daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: ghcr.io/OWNER/photobooth-api:latest
+              command: ["dotnet", "Photobooth.Api.dll", "--cleanup-only"]
+              env:
+                - name: ASPNETCORE_ENVIRONMENT
+                  value: "Production"
+                - name: ConnectionStrings__DefaultConnection
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: DB_CONNECTION
+                - name: Sftp__Host
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_HOST
+                - name: Sftp__Port
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_PORT
+                - name: Sftp__Username
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_USERNAME
+                - name: Sftp__Password
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_PASSWORD
+                - name: Sftp__BasePath
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_BASE_PATH
+                - name: Sftp__PublicBaseUrl
+                  valueFrom:
+                    secretKeyRef:
+                      name: photobooth-secrets
+                      key: SFTP_PUBLIC_BASE_URL
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photobooth-api
+  namespace: photobooth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: photobooth-api
+  template:
+    metadata:
+      labels:
+        app: photobooth-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/OWNER/photobooth-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: DB_CONNECTION
+            - name: Sftp__Host
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_HOST
+            - name: Sftp__Port
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_PORT
+            - name: Sftp__Username
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_USERNAME
+            - name: Sftp__Password
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_PASSWORD
+            - name: Sftp__BasePath
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_BASE_PATH
+            - name: Sftp__PublicBaseUrl
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: SFTP_PUBLIC_BASE_URL
+            - name: Cors__Origins__0
+              value: "https://photobooth.example.com"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photobooth-api
+  namespace: photobooth
+spec:
+  selector:
+    app: photobooth-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

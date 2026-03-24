@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.nx/
+
+# .NET
+apps/api/bin/
+apps/api/obj/
+dist/
+
+# Frontend
+apps/web/dist/
+apps/web/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+*.local
+apps/api/appsettings.*.local.json
+
+# Docker
+docker-compose.override.yaml

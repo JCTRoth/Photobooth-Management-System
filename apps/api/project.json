@@ -1,0 +1,24 @@
+{
+  "name": "api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/api",
+  "targets": {
+    "restore": {
+      "command": "dotnet restore apps/api/Photobooth.Api.csproj"
+    },
+    "build": {
+      "command": "dotnet build apps/api/Photobooth.Api.csproj -c Release",
+      "dependsOn": ["restore"]
+    },
+    "serve": {
+      "command": "dotnet run --project apps/api/Photobooth.Api.csproj"
+    },
+    "watch": {
+      "command": "dotnet watch run --project apps/api/Photobooth.Api.csproj"
+    },
+    "publish": {
+      "command": "dotnet publish apps/api/Photobooth.Api.csproj -c Release -o dist/apps/api"
+    }
+  }
+}

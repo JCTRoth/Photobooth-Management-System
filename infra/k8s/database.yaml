@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photobooth-db
+  namespace: photobooth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: photobooth-db
+  template:
+    metadata:
+      labels:
+        app: photobooth-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: photobooth
+            - name: POSTGRES_USER
+              value: photobooth
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: photobooth-secrets
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: photobooth-db-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: photobooth-db-pvc
+  namespace: photobooth
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photobooth-db
+  namespace: photobooth
+spec:
+  selector:
+    app: photobooth-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

@@ -1,0 +1,23 @@
+{
+  "name": "@photobooth/source",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "api:restore": "dotnet restore apps/api/Photobooth.Api.csproj",
+    "api:build": "dotnet build apps/api/Photobooth.Api.csproj -c Release",
+    "api:run": "dotnet run --project apps/api/Photobooth.Api.csproj",
+    "api:watch": "dotnet watch run --project apps/api/Photobooth.Api.csproj",
+    "api:migrate": "dotnet ef migrations add $(date +%s) --project apps/api/Photobooth.Api.csproj",
+    "api:db-update": "dotnet ef database update --project apps/api/Photobooth.Api.csproj",
+    "web:dev": "npx nx run web:dev",
+    "web:build": "npx nx run web:build",
+    "web:preview": "npx nx run web:preview"
+  },
+  "devDependencies": {
+    "@nx/js": "^22.6.1",
+    "@nx/react": "^22.6.1",
+    "@nx/vite": "^22.6.1",
+    "@nx/workspace": "^22.6.1",
+    "nx": "22.6.1"
+  }
+}

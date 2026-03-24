@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: photobooth
+      POSTGRES_USER: photobooth
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "5000:8080"
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=photobooth;Username=photobooth;Password=changeme"
+      Sftp__Host: "${SFTP_HOST:-sftp.example.com}"
+      Sftp__Port: "${SFTP_PORT:-22}"
+      Sftp__Username: "${SFTP_USERNAME:-user}"
+      Sftp__Password: "${SFTP_PASSWORD:-changeme}"
+      Sftp__BasePath: "/weddings"
+      Sftp__PublicBaseUrl: "http://localhost:5000"
+      Cors__Origins__0: "http://localhost:5173"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

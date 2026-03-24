@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photobooth-web
+  namespace: photobooth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: photobooth-web
+  template:
+    metadata:
+      labels:
+        app: photobooth-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/OWNER/photobooth-web:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photobooth-web
+  namespace: photobooth
+spec:
+  selector:
+    app: photobooth-web
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: photobooth-ingress
+  namespace: photobooth
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - photobooth.example.com
+      secretName: photobooth-tls
+  rules:
+    - host: photobooth.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: photobooth-api
+                port:
+                  number: 8080
+          - path: /d
+            pathType: Prefix
+            backend:
+              service:
+                name: photobooth-api
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: photobooth-web
+                port:
+                  number: 80
