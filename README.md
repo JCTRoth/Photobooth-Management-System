@@ -6,7 +6,7 @@ Wedding photobooth management platform with multi-event support, SFTP-based imag
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Kubernetes (Contabo)                    │
+│                      Kubernetes cluster                      │
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐ │
 │  │  React SPA   │  │ ASP.NET Core │  │   PostgreSQL 16    │ │
@@ -18,7 +18,6 @@ Wedding photobooth management platform with multi-event support, SFTP-based imag
                             │
                     ┌───────▼───────┐
                     │  SFTP Server  │
-                    │  (IONOS/1&1)  │
                     │  /weddings/   │
                     └───────────────┘
 
