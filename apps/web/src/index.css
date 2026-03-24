@@ -236,23 +236,162 @@ input:focus, select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  user-select: none;
+  touch-action: none;
 }
 
 .slideshow-container img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .slideshow-counter {
   position: absolute;
   bottom: 24px;
   right: 24px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.9rem;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 12px;
   border-radius: 4px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+/* Navigation Buttons */
+.slideshow-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, transform 0.1s;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.slideshow-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.slideshow-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.slideshow-btn-prev {
+  left: 24px;
+}
+
+.slideshow-btn-next {
+  right: 24px;
+}
+
+/* Controls Bar */
+.slideshow-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  padding: 40px 24px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 8;
+  backdrop-filter: blur(4px);
+}
+
+.slideshow-play-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.slideshow-play-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slideshow-play-btn:active {
+  transform: scale(0.95);
+}
+
+.slideshow-info {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-left: auto;
+  margin-right: 12px;
+}
+
+/* Keyboard Help */
+.slideshow-help {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .slideshow-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
+  }
+
+  .slideshow-btn-prev {
+    left: 12px;
+  }
+
+  .slideshow-btn-next {
+    right: 12px;
+  }
+
+  .slideshow-controls {
+    padding: 30px 12px 12px;
+  }
+
+  .slideshow-counter {
+    bottom: 12px;
+    right: 12px;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+
+  .slideshow-help {
+    bottom: 12px;
+    left: 12px;
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
 }
 
 .download-page {
