@@ -4,11 +4,12 @@ import type { EventResponse } from '@/types/api';
 
 interface EventTableProps {
   events: EventResponse[];
+  assignedDeviceCounts?: Record<string, number>;
   onEdit: (event: EventResponse) => void;
   onDelete: (id: string) => void;
 }
 
-export function EventTable({ events, onEdit, onDelete }: EventTableProps) {
+export function EventTable({ events, assignedDeviceCounts = {}, onEdit, onDelete }: EventTableProps) {
   return (
     <div className="card" style={{ padding: 0, overflow: 'auto' }}>
       <table className="event-table">
@@ -16,6 +17,7 @@ export function EventTable({ events, onEdit, onDelete }: EventTableProps) {
           <tr>
             <th>Name</th>
             <th>Date</th>
+            <th>Booths</th>
             <th>Photos</th>
             <th>Status</th>
             <th>Upload Link</th>
@@ -28,6 +30,7 @@ export function EventTable({ events, onEdit, onDelete }: EventTableProps) {
             <EventRow
               key={event.id}
               event={event}
+              assignedDeviceCount={assignedDeviceCounts[event.id] ?? 0}
               onEdit={onEdit}
               onDelete={onDelete}
             />
@@ -40,10 +43,12 @@ export function EventTable({ events, onEdit, onDelete }: EventTableProps) {
 
 function EventRow({
   event,
+  assignedDeviceCount,
   onEdit,
   onDelete,
 }: {
   event: EventResponse;
+  assignedDeviceCount: number;
   onEdit: (e: EventResponse) => void;
   onDelete: (id: string) => void;
 }) {
@@ -51,7 +56,10 @@ function EventRow({
   const isExpired = new Date(event.expiresAt) < new Date();
 
   const coupleUrl = `${window.location.origin}/event/${event.id}/upload?token=${event.uploadToken}`;
-  const slideshowUrl = `${window.location.origin}/slideshow/${event.id}`;
+  const defaultAlbum = event.slideshowAlbums[0];
+  const slideshowUrl = defaultAlbum
+    ? `${window.location.origin}/slideshow/${event.id}?album=${encodeURIComponent(defaultAlbum.slug)}`
+    : `${window.location.origin}/slideshow/${event.id}`;
 
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -65,6 +73,7 @@ function EventRow({
         <Link to={`/admin/events/${event.id}`}>{event.name}</Link>
       </td>
       <td>{event.date}</td>
+      <td>{assignedDeviceCount}</td>
       <td>{event.imageCount}</td>
       <td>
         <span className={isExpired ? 'status-expired' : 'status-active'}>
@@ -77,7 +86,14 @@ function EventRow({
         </button>
       </td>
       <td>
-        <a href={slideshowUrl} target="_blank" rel="noreferrer" className="copy-btn" style={{ textDecoration: 'none' }}>
+        <a
+          href={slideshowUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="copy-btn"
+          style={{ textDecoration: 'none' }}
+          title={defaultAlbum ? `Open ${defaultAlbum.name}` : 'Open slideshow'}
+        >
           🖥 Open
         </a>
       </td>

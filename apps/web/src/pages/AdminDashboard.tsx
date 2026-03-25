@@ -1,21 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { EventResponse } from '@/types/api';
-import { getEvents, createEvent, updateEvent, deleteEvent } from '@/services/api';
+import type { EventResponse, SlideshowAlbumInput } from '@/types/api';
+import type { DeviceSummary } from '@/types/device';
+import { getEvents, createEvent, updateEvent, deleteEvent, getDevices } from '@/services/api';
 import { EventForm } from '@/components/EventForm';
 import { EventTable } from '@/components/EventTable';
 
 export function AdminDashboard() {
   const [events, setEvents] = useState<EventResponse[]>([]);
+  const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadEvents = useCallback(async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getEvents();
-      setEvents(data.events);
+      setError(null);
+      const [eventData, deviceData] = await Promise.all([getEvents(), getDevices()]);
+      setEvents(eventData.events);
+      setDevices(deviceData.devices);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load events');
     } finally {
@@ -24,25 +28,35 @@ export function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    loadDashboard();
+  }, [loadDashboard]);
 
-  const handleCreate = async (data: { name: string; date: string; retentionDays: number }) => {
+  const handleCreate = async (data: {
+    name: string;
+    date: string;
+    retentionDays: number;
+    slideshowAlbums: SlideshowAlbumInput[];
+  }) => {
     try {
       await createEvent(data);
       setShowForm(false);
-      await loadEvents();
+      await loadDashboard();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
     }
   };
 
-  const handleUpdate = async (data: { name: string; date: string; retentionDays: number }) => {
+  const handleUpdate = async (data: {
+    name: string;
+    date: string;
+    retentionDays: number;
+    slideshowAlbums: SlideshowAlbumInput[];
+  }) => {
     if (!editingEvent) return;
     try {
       await updateEvent(editingEvent.id, data);
       setEditingEvent(null);
-      await loadEvents();
+      await loadDashboard();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update event');
     }
@@ -54,11 +68,21 @@ export function AdminDashboard() {
     }
     try {
       await deleteEvent(id);
-      await loadEvents();
+      await loadDashboard();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete event');
     }
   };
+
+  const assignedDeviceCounts = devices.reduce<Record<string, number>>((counts, device) => {
+    const eventId = device.assignedEvent?.eventId;
+    if (eventId) counts[eventId] = (counts[eventId] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  const totalPhotos = events.reduce((sum, event) => sum + event.imageCount, 0);
+  const onlineDevices = devices.filter((device) => device.connectivity === 'online').length;
+  const assignedDevices = devices.filter((device) => device.assignedEvent).length;
 
   return (
     <>
@@ -78,6 +102,29 @@ export function AdminDashboard() {
         </div>
       )}
 
+      <div className="admin-stat-grid">
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Active Events</span>
+          <strong>{events.length}</strong>
+          <p>All wedding galleries currently managed in the system.</p>
+        </div>
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Devices Online</span>
+          <strong>{onlineDevices}</strong>
+          <p>Photobooths that have checked in during the last two minutes.</p>
+        </div>
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Assigned Booths</span>
+          <strong>{assignedDevices}</strong>
+          <p>Devices already linked to an event and ready for guest uploads.</p>
+        </div>
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Photos Stored</span>
+          <strong>{totalPhotos}</strong>
+          <p>Total guest and couple uploads across all events.</p>
+        </div>
+      </div>
+
       {loading ? (
         <p style={{ color: 'var(--text-muted)' }}>Loading events...</p>
       ) : events.length === 0 ? (
@@ -89,6 +136,7 @@ export function AdminDashboard() {
       ) : (
         <EventTable
           events={events}
+          assignedDeviceCounts={assignedDeviceCounts}
           onEdit={setEditingEvent}
           onDelete={handleDelete}
         />

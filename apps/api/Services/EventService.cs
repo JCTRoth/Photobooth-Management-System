@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Photobooth.Api.DTOs;
 using Photobooth.Api.Models;
 using Photobooth.Api.Repositories;
@@ -17,6 +19,10 @@ public interface IEventService
 
 public class EventService : IEventService
 {
+    private static readonly JsonSerializerOptions SlideshowJsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] AllowedSources = ["all", "guest", "couple"];
+    private static readonly string[] AllowedModes = ["cinema", "mosaic", "spotlight"];
+
     private readonly IEventRepository _eventRepo;
     private readonly ISftpStorageService _sftpStorage;
 
@@ -30,6 +36,7 @@ public class EventService : IEventService
     {
         var token = GenerateSecureToken();
         var eventDate = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var albums = NormalizeAlbums(request.SlideshowAlbums);
 
         var entity = new Event
         {
@@ -37,6 +44,7 @@ public class EventService : IEventService
             Date = request.Date,
             UploadToken = token,
             ExpiresAt = eventDate.AddDays(request.RetentionDays),
+            SlideshowAlbumsJson = SerializeAlbums(albums),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -54,6 +62,7 @@ public class EventService : IEventService
         entity.Date = request.Date;
         var eventDate = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         entity.ExpiresAt = eventDate.AddDays(request.RetentionDays);
+        entity.SlideshowAlbumsJson = SerializeAlbums(NormalizeAlbums(request.SlideshowAlbums));
 
         await _eventRepo.UpdateAsync(entity, ct);
         return MapToResponse(entity);
@@ -113,8 +122,140 @@ public class EventService : IEventService
         ExpiresAt = entity.ExpiresAt,
         CreatedAt = entity.CreatedAt,
         CoupleUploadUrl = $"/event/{entity.Id}/upload?token={entity.UploadToken}",
-        ImageCount = entity.Images?.Count ?? 0
+        ImageCount = entity.Images?.Count ?? 0,
+        SlideshowAlbums = DeserializeAlbums(entity.SlideshowAlbumsJson)
     };
+
+    private static IReadOnlyList<SlideshowAlbumResponse> NormalizeAlbums(IReadOnlyList<SlideshowAlbumRequest>? requestedAlbums)
+    {
+        if (requestedAlbums is null || requestedAlbums.Count == 0)
+            return DefaultAlbums();
+
+        var results = new List<SlideshowAlbumResponse>();
+        var usedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var requested in requestedAlbums.Take(8))
+        {
+            var name = requested.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            var source = NormalizeValue(requested.Source, AllowedSources, "all");
+            var mode = NormalizeValue(requested.Mode, AllowedModes, "cinema");
+            var slug = EnsureUniqueSlug(Slugify(name), usedSlugs, results.Count + 1);
+
+            results.Add(new SlideshowAlbumResponse
+            {
+                Slug = slug,
+                Name = name,
+                Source = source,
+                Mode = mode
+            });
+        }
+
+        return results.Count > 0 ? results : DefaultAlbums();
+    }
+
+    private static IReadOnlyList<SlideshowAlbumResponse> DeserializeAlbums(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return DefaultAlbums();
+
+        try
+        {
+            var stored = JsonSerializer.Deserialize<List<SlideshowAlbumResponse>>(json, SlideshowJsonOptions);
+            if (stored is null || stored.Count == 0)
+                return DefaultAlbums();
+
+            return NormalizeAlbums(stored.Select(album => new SlideshowAlbumRequest
+            {
+                Name = album.Name,
+                Source = album.Source,
+                Mode = album.Mode
+            }).ToList());
+        }
+        catch (JsonException)
+        {
+            return DefaultAlbums();
+        }
+    }
+
+    private static string SerializeAlbums(IReadOnlyList<SlideshowAlbumResponse> albums) =>
+        JsonSerializer.Serialize(albums, SlideshowJsonOptions);
+
+    private static IReadOnlyList<SlideshowAlbumResponse> DefaultAlbums() =>
+    [
+        new SlideshowAlbumResponse
+        {
+            Slug = "highlights",
+            Name = "Highlights",
+            Source = "all",
+            Mode = "cinema"
+        },
+        new SlideshowAlbumResponse
+        {
+            Slug = "guest-floor",
+            Name = "Guest Floor",
+            Source = "guest",
+            Mode = "mosaic"
+        },
+        new SlideshowAlbumResponse
+        {
+            Slug = "couple-portraits",
+            Name = "Couple Portraits",
+            Source = "couple",
+            Mode = "spotlight"
+        }
+    ];
+
+    private static string NormalizeValue(string? value, IReadOnlyList<string> allowedValues, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return fallback;
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return allowedValues.Contains(normalized, StringComparer.OrdinalIgnoreCase)
+            ? normalized
+            : fallback;
+    }
+
+    private static string EnsureUniqueSlug(string slug, ISet<string> usedSlugs, int albumIndex)
+    {
+        var baseSlug = string.IsNullOrWhiteSpace(slug) ? $"album-{albumIndex}" : slug;
+        var candidate = baseSlug;
+        var suffix = 2;
+
+        while (!usedSlugs.Add(candidate))
+        {
+            candidate = $"{baseSlug}-{suffix++}";
+        }
+
+        return candidate;
+    }
+
+    private static string Slugify(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        var previousWasHyphen = false;
+
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(character);
+                previousWasHyphen = false;
+                continue;
+            }
+
+            if (previousWasHyphen || builder.Length == 0)
+                continue;
+
+            builder.Append('-');
+            previousWasHyphen = true;
+        }
+
+        return builder.ToString().Trim('-');
+    }
 
     private static string GenerateSecureToken()
     {

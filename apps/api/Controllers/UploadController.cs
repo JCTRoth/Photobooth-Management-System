@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Photobooth.Api.DTOs;
 using Photobooth.Api.Services;
@@ -36,32 +38,41 @@ public class UploadController : ControllerBase
     }
 
     /// <summary>
-    /// Guest upload endpoint — used by Photobooth Project bash script.
-    /// POST /api/upload/guest with multipart form: file + eventId
+    /// Guest upload endpoint for signed photobooth devices.
+    /// POST /api/upload/guest with multipart form: file + optional eventId
     /// </summary>
     [HttpPost("guest")]
+    [Authorize(Roles = "Device")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<ActionResult<UploadResponse>> UploadGuest(
-        [FromForm] Guid eventId,
+        [FromForm] Guid? eventId,
         IFormFile file,
         CancellationToken ct)
     {
+        var deviceIdRaw = User.FindFirstValue("deviceId") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(deviceIdRaw, out var deviceId))
+            return Unauthorized(new { error = "Signed device identity is missing." });
+
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "No file provided" });
 
         await using var stream = file.OpenReadStream();
         try
         {
-            var result = await _imageService.UploadGuestImageAsync(eventId, stream, file.FileName, ct);
+            var result = await _imageService.UploadDeviceGuestImageAsync(deviceId, eventId, stream, file.FileName, ct);
             return Ok(result);
         }
         catch (KeyNotFoundException)
         {
-            return NotFound(new { error = "Event not found" });
+            return NotFound(new { error = "Assigned event not found" });
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
         }
     }
 

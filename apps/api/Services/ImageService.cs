@@ -8,6 +8,7 @@ namespace Photobooth.Api.Services;
 
 public interface IImageService
 {
+    Task<UploadResponse> UploadDeviceGuestImageAsync(Guid deviceId, Guid? eventId, Stream fileStream, string originalFilename, CancellationToken ct = default);
     Task<UploadResponse> UploadGuestImageAsync(Guid eventId, Stream fileStream, string originalFilename, CancellationToken ct = default);
     Task<UploadResponse> UploadCoupleImageAsync(Guid eventId, string token, Stream fileStream, string originalFilename, CancellationToken ct = default);
     Task<ImageResponse?> GetByIdAsync(Guid imageId, CancellationToken ct = default);
@@ -21,6 +22,7 @@ public class ImageService : IImageService
 {
     private readonly IImageRepository _imageRepo;
     private readonly IEventRepository _eventRepo;
+    private readonly IDeviceRepository _deviceRepo;
     private readonly ISftpStorageService _sftpStorage;
     private readonly IEventService _eventService;
     private readonly UploadSettings _uploadSettings;
@@ -28,15 +30,38 @@ public class ImageService : IImageService
     public ImageService(
         IImageRepository imageRepo,
         IEventRepository eventRepo,
+        IDeviceRepository deviceRepo,
         ISftpStorageService sftpStorage,
         IEventService eventService,
         IOptions<UploadSettings> uploadSettings)
     {
         _imageRepo = imageRepo;
         _eventRepo = eventRepo;
+        _deviceRepo = deviceRepo;
         _sftpStorage = sftpStorage;
         _eventService = eventService;
         _uploadSettings = uploadSettings.Value;
+    }
+
+    public async Task<UploadResponse> UploadDeviceGuestImageAsync(Guid deviceId, Guid? eventId, Stream fileStream, string originalFilename, CancellationToken ct = default)
+    {
+        var device = await _deviceRepo.GetByIdAsync(deviceId, ct)
+            ?? throw new KeyNotFoundException($"Device {deviceId} not found");
+
+        if (!device.AssignedEventId.HasValue)
+            throw new InvalidOperationException("This device is not assigned to an event.");
+
+        if (eventId.HasValue && eventId.Value != device.AssignedEventId.Value)
+            throw new UnauthorizedAccessException("The device is not assigned to the requested event.");
+
+        var ev = device.AssignedEvent ?? await _eventRepo.GetByIdAsync(device.AssignedEventId.Value, ct);
+        if (ev is null)
+            throw new KeyNotFoundException($"Event {device.AssignedEventId.Value} not found");
+
+        if (ev.ExpiresAt <= DateTime.UtcNow)
+            throw new InvalidOperationException("Assigned event has expired.");
+
+        return await ProcessUploadAsync(ev.Id, ImageType.Guest, "guests", fileStream, originalFilename, ct);
     }
 
     public async Task<UploadResponse> UploadGuestImageAsync(Guid eventId, Stream fileStream, string originalFilename, CancellationToken ct = default)

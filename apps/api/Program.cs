@@ -20,11 +20,15 @@ if (args.Contains("--cleanup-only"))
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
     builder.Services.AddScoped<IEventRepository, EventRepository>();
     builder.Services.AddScoped<IImageRepository, ImageRepository>();
+    builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+    builder.Services.AddScoped<IDeviceRequestNonceRepository, DeviceRequestNonceRepository>();
     builder.Services.AddSingleton<ISftpStorageService, SftpStorageService>();
 
     await using var cleanupApp = builder.Build();
     using var scope = cleanupApp.Services.CreateScope();
     var eventRepo = scope.ServiceProvider.GetRequiredService<IEventRepository>();
+    var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+    var nonceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRequestNonceRepository>();
     var sftpStorage = scope.ServiceProvider.GetRequiredService<ISftpStorageService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
@@ -46,6 +50,12 @@ if (args.Contains("--cleanup-only"))
         }
     }
 
+    var offlineCount = await deviceRepo.MarkOfflineAsync(DateTime.UtcNow.AddMinutes(-2));
+    logger.LogInformation("Device offline reconciliation: marked {Count} devices offline", offlineCount);
+
+    var deletedNonces = await nonceRepo.DeleteExpiredAsync(DateTime.UtcNow);
+    logger.LogInformation("Device nonce cleanup: deleted {Count} expired nonces", deletedNonces);
+
     logger.LogInformation("GDPR Cleanup complete");
     return;
 }
@@ -63,6 +73,8 @@ builder.Services.AddDbContext<PhotoboothDbContext>(options =>
 // --- Repositories ---
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IImageRepository, ImageRepository>();
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IDeviceRequestNonceRepository, DeviceRequestNonceRepository>();
 
 // --- Services ---
 if (builder.Environment.IsDevelopment())
@@ -77,6 +89,8 @@ else
 }
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IDeviceService, DeviceService>();
+builder.Services.AddScoped<IDeviceAuthenticationService, DeviceAuthenticationService>();
 builder.Services.AddScoped<IZipService, ZipService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -154,6 +168,7 @@ app.Use(async (context, next) =>
 
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<DeviceAuthenticationMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseMiddleware<FileValidationMiddleware>();

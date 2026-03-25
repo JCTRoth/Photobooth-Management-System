@@ -1,3 +1,19 @@
+export type SlideshowAlbumSource = 'all' | 'guest' | 'couple';
+export type SlideshowAlbumMode = 'cinema' | 'mosaic' | 'spotlight';
+
+export interface SlideshowAlbum {
+  slug: string;
+  name: string;
+  source: SlideshowAlbumSource;
+  mode: SlideshowAlbumMode;
+}
+
+export interface SlideshowAlbumInput {
+  name: string;
+  source: SlideshowAlbumSource;
+  mode: SlideshowAlbumMode;
+}
+
 export interface EventResponse {
   id: string;
   name: string;
@@ -7,6 +23,7 @@ export interface EventResponse {
   createdAt: string;
   coupleUploadUrl: string;
   imageCount: number;
+  slideshowAlbums: SlideshowAlbum[];
 }
 
 export interface EventListResponse {
@@ -18,12 +35,14 @@ export interface CreateEventRequest {
   name: string;
   date: string;
   retentionDays?: number;
+  slideshowAlbums?: SlideshowAlbumInput[];
 }
 
 export interface UpdateEventRequest {
   name: string;
   date: string;
   retentionDays?: number;
+  slideshowAlbums?: SlideshowAlbumInput[];
 }
 
 export interface ImageResponse {

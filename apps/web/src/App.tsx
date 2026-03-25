@@ -10,6 +10,8 @@ import { MarriageLogin } from '@/pages/MarriageLogin';
 import { MyGallery } from '@/pages/MyGallery';
 import { AdminChangePassword } from '@/pages/AdminChangePassword';
 import { AdminSmtpSettings } from '@/pages/AdminSmtpSettings';
+import { AdminDevicesDashboard } from '@/pages/AdminDevicesDashboard';
+import { AdminDeviceDetail } from '@/pages/AdminDeviceDetail';
 import { LandingPage } from '@/pages/LandingPage';
 import { RequireAuth } from '@/components/RequireAuth';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -57,6 +59,8 @@ export function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="events/:eventId" element={<EventDetail />} />
+            <Route path="devices" element={<AdminDevicesDashboard />} />
+            <Route path="devices/:deviceId" element={<AdminDeviceDetail />} />
             <Route path="settings/smtp" element={<AdminSmtpSettings />} />
           </Route>
 
@@ -97,6 +101,7 @@ function AdminLayout() {
           Photobooth Admin
         </Link>
         <Link to="/admin">Events</Link>
+        <Link to="/admin/devices">Devices</Link>
         <Link to="/admin/settings/smtp">SMTP</Link>
         <button className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={handleLogout}>
           Log out

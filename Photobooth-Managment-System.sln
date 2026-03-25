@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -7,6 +7,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{BC2D172B-13BC-136C-CDB1-4B1A687208C4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Photobooth.Api", "apps\api\Photobooth.Api.csproj", "{957281EA-BB2B-366B-B7B2-E359C2D3F7E1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Photobooth.Client", "apps\client\Photobooth.Client.csproj", "{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,6 +20,10 @@ Global
 		{957281EA-BB2B-366B-B7B2-E359C2D3F7E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{957281EA-BB2B-366B-B7B2-E359C2D3F7E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{957281EA-BB2B-366B-B7B2-E359C2D3F7E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -25,6 +31,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{BC2D172B-13BC-136C-CDB1-4B1A687208C4} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
 		{957281EA-BB2B-366B-B7B2-E359C2D3F7E1} = {BC2D172B-13BC-136C-CDB1-4B1A687208C4}
+		{F6C93B4B-8F4A-45C7-B78D-086F9A9C5193} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F5C73F20-B192-491D-B376-79EB126A1650}

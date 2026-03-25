@@ -32,6 +32,11 @@ public class Event
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    [Required]
+    [Column("slideshow_albums_json")]
+    public string SlideshowAlbumsJson { get; set; } = "[]";
+
     public ICollection<Image> Images { get; set; } = new List<Image>();
     public ICollection<MarriageEmail> MarriageEmails { get; set; } = new List<MarriageEmail>();
+    public ICollection<Device> Devices { get; set; } = new List<Device>();
 }

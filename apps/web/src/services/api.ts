@@ -8,6 +8,12 @@ import type {
   DownloadPageData,
 } from '@/types/api';
 import type {
+  DeviceConfigResponse,
+  DeviceDetail,
+  DeviceListResponse,
+  RegisterDeviceResponse,
+} from '@/types/device';
+import type {
   AdminLoginResponse,
   AdminVerifyResponse,
   MarriageEmailStatus,
@@ -27,17 +33,16 @@ export function configureAuth(
   _refreshToken = refreshToken;
 }
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+async function fetchWithAuth(url: string, options?: RequestInit): Promise<Response> {
   const token = _getToken?.();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   };
+
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res = await fetch(`${BASE}${url}`, { ...options, headers, credentials: 'include' });
 
-  // 401 → try token refresh once
   if (res.status === 401 && _refreshToken) {
     const newToken = await _refreshToken();
     if (newToken) {
@@ -45,6 +50,16 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       res = await fetch(`${BASE}${url}`, { ...options, headers, credentials: 'include' });
     }
   }
+
+  return res;
+}
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+  const res = await fetchWithAuth(url, { ...options, headers });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -78,11 +93,50 @@ export async function updateEvent(id: string, data: UpdateEventRequest): Promise
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/events/${id}`, { method: 'DELETE' });
+  const res = await fetchWithAuth(`/api/events/${id}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 204) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Delete failed: ${res.status}`);
   }
+}
+
+// --- Devices ---
+
+export async function getDevices(): Promise<DeviceListResponse> {
+  return request('/api/devices');
+}
+
+export async function getDevice(id: string): Promise<DeviceDetail> {
+  return request(`/api/devices/${id}`);
+}
+
+export async function assignDeviceEvent(id: string, eventId: string | null): Promise<DeviceDetail> {
+  return request(`/api/devices/${id}/assignment`, {
+    method: 'PUT',
+    body: JSON.stringify({ eventId }),
+  });
+}
+
+export async function deleteDevice(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/devices/${id}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 204) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Delete failed: ${res.status}`);
+  }
+}
+
+export async function registerDevice(
+  name: string,
+  publicKeyPem?: string
+): Promise<RegisterDeviceResponse> {
+  return request('/api/devices/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, publicKeyPem }),
+  });
+}
+
+export async function getDeviceConfig(id: string): Promise<DeviceConfigResponse> {
+  return request(`/api/devices/${id}/config`);
 }
 
 // --- Images ---

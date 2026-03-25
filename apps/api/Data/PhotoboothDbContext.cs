@@ -15,6 +15,8 @@ public class PhotoboothDbContext : DbContext
     public DbSet<LoginCode> LoginCodes => Set<LoginCode>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<SmtpConfiguration> SmtpConfigurations => Set<SmtpConfiguration>();
+    public DbSet<Device> Devices => Set<Device>();
+    public DbSet<DeviceRequestNonce> DeviceRequestNonces => Set<DeviceRequestNonce>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +31,11 @@ public class PhotoboothDbContext : DbContext
                 .HasConversion(
                     d => d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
                     d => DateOnly.FromDateTime(d));
+
+            entity.HasMany(e => e.Devices)
+                .WithOne(d => d.AssignedEvent)
+                .HasForeignKey(d => d.AssignedEventId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Image>(entity =>
@@ -91,6 +98,30 @@ public class PhotoboothDbContext : DbContext
             entity.HasIndex(e => e.TokenHash).IsUnique();
             entity.HasIndex(e => e.SubjectId);
             entity.HasIndex(e => e.ExpiresAt);
+        });
+
+        modelBuilder.Entity<Device>(entity =>
+        {
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.LastSeenAt);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.AssignedEventId);
+
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<DeviceRequestNonce>(entity =>
+        {
+            entity.HasIndex(e => new { e.DeviceId, e.Nonce }).IsUnique();
+            entity.HasIndex(e => e.ExpiresAt);
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.HasOne(e => e.Device)
+                .WithMany(d => d.RequestNonces)
+                .HasForeignKey(e => e.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Photobooth.Api.Data;
@@ -11,9 +12,11 @@ using Photobooth.Api.Data;
 namespace Photobooth.Api.Data.Migrations
 {
     [DbContext(typeof(PhotoboothDbContext))]
-    partial class PhotoboothDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325162957_AddEventSlideshowAlbums")]
+    partial class AddEventSlideshowAlbums
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

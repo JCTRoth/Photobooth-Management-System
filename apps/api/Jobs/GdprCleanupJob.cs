@@ -38,6 +38,8 @@ public sealed class GdprCleanupJob : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var eventRepo = scope.ServiceProvider.GetRequiredService<IEventRepository>();
+        var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+        var nonceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRequestNonceRepository>();
         var sftpStorage = scope.ServiceProvider.GetRequiredService<ISftpStorageService>();
 
         var expiredEvents = await eventRepo.GetExpiredAsync(ct);
@@ -66,6 +68,18 @@ public sealed class GdprCleanupJob : BackgroundService
             {
                 _logger.LogError(ex, "Failed to delete expired event {EventId}", ev.Id);
             }
+        }
+
+        var offlineCount = await deviceRepo.MarkOfflineAsync(DateTime.UtcNow.AddMinutes(-2), ct);
+        if (offlineCount > 0)
+        {
+            _logger.LogInformation("Marked {Count} stale devices as offline", offlineCount);
+        }
+
+        var deletedNonces = await nonceRepo.DeleteExpiredAsync(DateTime.UtcNow, ct);
+        if (deletedNonces > 0)
+        {
+            _logger.LogInformation("Deleted {Count} expired device request nonces", deletedNonces);
         }
     }
 }

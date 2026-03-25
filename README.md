@@ -1,230 +1,285 @@
 # Photobooth Management System
 
-Wedding photobooth management platform with multi-event support, SFTP-based image storage, QR code downloads, and GDPR compliance.
+Production-ready wedding photobooth platform for managing multiple booth devices, central event assignments, signed guest uploads, QR downloads, and SFTP-backed image storage.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Kubernetes cluster                      │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐ │
-│  │  React SPA   │  │ ASP.NET Core │  │   PostgreSQL 16    │ │
-│  │  (nginx)     │──│  Web API     │──│                    │ │
-│  │  :80         │  │  :8080       │  │  :5432             │ │
-│  └──────────────┘  └──────┬───────┘  └────────────────────┘ │
-│                           │                                  │
-└───────────────────────────┼──────────────────────────────────┘
-                            │
-                    ┌───────▼───────┐
-                    │  SFTP Server  │
-                    │  /weddings/   │
-                    └───────────────┘
-
-External:
-  Photobooth Project ──curl POST──▶ /api/upload/guest
-```
-
-## Tech Stack
-
-| Layer          | Technology                         |
-|----------------|------------------------------------|
-| Backend        | ASP.NET Core 8 (C# Web API)       |
-| Frontend       | React 18 + Vite + TypeScript       |
-| Database       | PostgreSQL 16                      |
-| Storage        | SFTP (SSH.NET)                     |
-| Deployment     | Kubernetes + Docker                |
-| Monorepo       | NX                                 |
-
-## Project Structure
-
-```
-├── apps/
-│   ├── api/                    # ASP.NET Core Web API
-│   │   ├── Configuration/      # SftpSettings, UploadSettings
-│   │   ├── Controllers/        # Events, Upload, Download, Images
-│   │   ├── Data/               # EF Core DbContext + Migrations
-│   │   ├── DTOs/               # Request/Response DTOs
-│   │   ├── Jobs/               # GDPR background cleanup
-│   │   ├── Middleware/         # File validation (type, size, magic bytes)
-│   │   ├── Models/             # Event, Image entities
-│   │   ├── Repositories/       # Data access layer
-│   │   └── Services/           # Business logic (Event, Image, SFTP, ZIP)
-│   └── web/                    # React SPA
-│       └── src/
-│           ├── components/     # EventForm, EventTable
-│           ├── pages/          # AdminDashboard, CoupleUpload, DownloadPage, Slideshow
-│           ├── services/       # API client
-│           └── types/          # TypeScript interfaces
-├── infra/k8s/                  # Kubernetes manifests
-├── scripts/                    # Photobooth upload script
-├── docker-compose.yaml         # Local development
-└── nx.json                     # NX workspace config
+```text
+                          ┌───────────────────────────────┐
+                          │       React Admin Panel       │
+                          │      /admin, /admin/devices   │
+                          └──────────────┬────────────────┘
+                                         │ HTTPS
+                                         ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              ASP.NET Core API                               │
+│  JWT admin auth • device signature verification • event management • SFTP   │
+│  device registration • heartbeat tracking • signed upload validation        │
+└──────────────┬───────────────────────────────┬───────────────────────────────┘
+               │                               │
+               │ EF Core / Npgsql             │ SSH / SFTP
+               ▼                               ▼
+      ┌──────────────────┐            ┌──────────────────────┐
+      │   PostgreSQL 16   │            │   SFTP image store   │
+      │ events/devices/...│            │ /weddings/{eventId}  │
+      └──────────────────┘            └──────────────────────┘
+               ▲
+               │ HTTPS + RSA signatures + nonce + timestamp
+               │
+    ┌──────────┴──────────┐
+    │ Photobooth clients  │
+    │ register • heartbeat│
+    │ fetch config • upload
+    └─────────────────────┘
 ```
 
-## Quick Start (Local Development)
+## Core Components
 
-### Prerequisites
+| Layer | Technology |
+|---|---|
+| Backend | ASP.NET Core 8, EF Core, Npgsql |
+| Admin UI | React 18, TypeScript, Vite |
+| Device client | .NET 8 console client |
+| Database | PostgreSQL 16 |
+| Storage | SFTP |
+| Deployment | Kubernetes |
 
-- .NET 8 SDK
-- Node.js 20+
-- PostgreSQL 16 (or use Docker Compose)
-- `dotnet-ef` tool: `dotnet tool install --global dotnet-ef`
+## Repository Layout
 
-### 1. Start Database
+```text
+apps/
+  api/       ASP.NET Core API, EF migrations, services, controllers
+  web/       React admin panel and public pages
+  client/    Signed photobooth device client
+infra/k8s/   Kubernetes manifests
+scripts/     Photobooth Project hook scripts
+docs/        Architecture and development documentation
+```
+
+## Documentation
+
+- [Development Guide](./docs/development.md)
+- [Client README](./apps/client/README.md)
+
+## Local Development
+
+### 1. Start PostgreSQL
 
 ```bash
 docker compose up db -d
 ```
 
-### 2. Run Migrations
+### 2. Apply database migrations
 
 ```bash
-dotnet ef database update --project apps/api/Photobooth.Api.csproj
+npm run api:db-update
 ```
 
-### 3. Start API
+### 3. Start the API with hot reload
 
 ```bash
-# Terminal 1
-ASPNETCORE_ENVIRONMENT=Development dotnet run --project apps/api/Photobooth.Api.csproj
+npm run api:watch
 ```
 
-The API runs at `http://localhost:5000` with Swagger UI at `/swagger`.
-In development mode, files are stored locally (no SFTP server needed).
+The API listens on `http://localhost:5000`.
 
-### 4. Start Frontend
+### 4. Start the frontend
 
 ```bash
-# Terminal 2
-cd apps/web && npm install && npm run dev
+npm --prefix apps/web install
+npx nx run web:dev
 ```
 
-The frontend runs at `http://localhost:5173` with API proxy configured for `http://localhost:5000` by default.
-Set `VITE_API_PROXY_TARGET` if you intentionally run the API on another port.
+The frontend runs on `http://localhost:5173` and proxies `/api` to the API.
 
-### 5. (Alternative) Docker Compose
+### 5. Bootstrap admin access
+
+On a fresh database the API creates the first admin automatically:
+
+```text
+identifier: Admin
+password:   Admin
+```
+
+The first login forces a password change.
+
+### 6. Provision and run a photobooth client
 
 ```bash
-docker compose up --build
+npx nx run client:register
+npx nx run client:run
+npx nx run client:upload-file
 ```
 
-- API: `http://localhost:5000`
-- Web: `http://localhost:8080`
+You can also use the admin panel at `/admin/devices` to provision a device package and download the JSON config.
+The Nx targets use a local dev config at `apps/client/photobooth-device.local.json` and will auto-bootstrap it when needed.
+For custom parameters, use the raw `dotnet run --project apps/client/Photobooth.Client.csproj -- ...` commands from [apps/client/README.md](./apps/client/README.md).
 
-## API Endpoints
+## Device Workflow
 
-| Method | Endpoint                            | Description                    |
-|--------|-------------------------------------|--------------------------------|
-| GET    | `/api/events`                       | List all events                |
-| GET    | `/api/events/{id}`                  | Get event by ID                |
-| POST   | `/api/events`                       | Create event                   |
-| PUT    | `/api/events/{id}`                  | Update event                   |
-| DELETE | `/api/events/{id}`                  | Delete event + SFTP data       |
-| GET    | `/api/events/{id}/images`           | Get all images (slideshow)     |
-| POST   | `/api/upload/guest`                 | Upload guest photo (multipart) |
-| POST   | `/api/upload/couple/{id}?token=XYZ` | Upload couple photo            |
-| GET    | `/api/upload/validate/{id}?token=X` | Validate upload token          |
-| GET    | `/api/images/{id}`                  | Get image metadata             |
-| GET    | `/api/images/{id}/file`             | Serve image file (from SFTP)   |
-| GET    | `/d/{imageId}`                      | Download page data             |
-| GET    | `/api/download/{imageId}/zip`       | Stream ZIP (guest + couple)    |
-| GET    | `/api/health`                       | Health check endpoint          |
+### Registration
 
-## Photobooth Integration
+`POST /api/devices/register`
 
-Configure the provided bash script in Photobooth Project's post-capture command:
+- Creates the device record
+- Stores the public key
+- Returns the device ID
+- Returns the private key once if the backend generated the keypair
+
+### Request Signing
+
+Every device request includes:
+
+- `X-Photobooth-Device-Id`
+- `X-Photobooth-Timestamp`
+- `X-Photobooth-Nonce`
+- `X-Photobooth-Signature`
+
+Canonical signature input:
+
+```text
+METHOD
+/path?query
+timestamp
+nonce
+SHA256(body)
+```
+
+The backend verifies the RSA-PSS signature with the stored public key and rejects replayed nonces.
+
+### Heartbeats
+
+`POST /api/devices/heartbeat`
+
+- Sent every 30-60 seconds
+- Updates `last_seen_at`, connectivity, and device status
+- Devices are marked offline after 2 minutes without heartbeats
+
+### Uploads
+
+`POST /api/upload/guest`
+
+- Requires signed device authentication
+- Validates the device-to-event assignment
+- Stores guest captures on SFTP under `/weddings/{eventId}/guests/`
+
+## Main API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/events` | List events |
+| POST | `/api/events` | Create event |
+| PUT | `/api/events/{id}` | Update event |
+| DELETE | `/api/events/{id}` | Delete event and images |
+| GET | `/api/devices` | List photobooth devices |
+| GET | `/api/devices/{id}` | Device detail |
+| PUT | `/api/devices/{id}/assignment` | Assign or unassign event |
+| POST | `/api/devices/register` | Register new device |
+| GET | `/api/devices/{id}/config` | Fetch signed device config |
+| POST | `/api/devices/heartbeat` | Heartbeat from device |
+| POST | `/api/upload/guest` | Signed booth image upload |
+| POST | `/api/upload/couple/{id}?token=...` | Couple upload |
+| GET | `/d/{imageId}` | Guest download page |
+
+## Admin Panel
+
+### Events
+
+- Create, edit, and delete wedding events
+- See assigned booth counts per event
+- Browse images and slideshow links
+
+### Devices
+
+- Provision devices and generate bootstrap JSON
+- Monitor online/offline state and last heartbeat
+- Inspect key fingerprints
+- Assign or reassign events
+- Delete retired or compromised devices so their keys can no longer authenticate
+
+### SMTP
+
+- Configure SMTP from the admin UI
+- Test delivery and unlock admin OTP verification
+
+## Photobooth Project Integration
+
+Use the signed client directly:
 
 ```bash
-# Set environment variables
-export PHOTOBOOTH_API_URL="https://photobooth.example.com"
-export PHOTOBOOTH_EVENT_ID="your-event-uuid"
-
-# Test upload
-./scripts/photobooth-upload.sh /path/to/test-photo.jpg
+dotnet run --project apps/client/Photobooth.Client.csproj -- upload-file --config ./device.json --file ./capture.jpg
 ```
 
-See [scripts/photobooth-upload.sh](scripts/photobooth-upload.sh) for full documentation.
+Or wire the provided shell hook into Photobooth Project:
+
+```bash
+PHOTOBOOTH_DEVICE_CONFIG=/path/to/device.json ./scripts/photobooth-device-hook.sh "{filename}"
+```
+
+## Device Config File
+
+```json
+{
+  "serverUrl": "https://photobooth.example.com",
+  "deviceId": "11111111-2222-3333-4444-555555555555",
+  "privateKey": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+  "watchDirectory": "/opt/photobooth/output",
+  "deviceName": "Booth 01"
+}
+```
 
 ## Kubernetes Deployment
 
-### 1. Create Namespace
+### Deploy
 
 ```bash
 kubectl apply -f infra/k8s/namespace.yaml
-```
-
-### 2. Configure Secrets
-
-Edit `infra/k8s/secrets.yaml` with real credentials, then:
-
-```bash
 kubectl apply -f infra/k8s/secrets.yaml
-```
-
-### 3. Deploy
-
-```bash
 kubectl apply -f infra/k8s/database.yaml
 kubectl apply -f infra/k8s/api-deployment.yaml
 kubectl apply -f infra/k8s/web-deployment.yaml
 kubectl apply -f infra/k8s/cronjob-cleanup.yaml
 ```
 
-### Required Secrets
+### Required secrets
 
-| Key                 | Description                      |
-|---------------------|----------------------------------|
-| `DB_CONNECTION`     | Full PostgreSQL connection string |
-| `DB_PASSWORD`       | PostgreSQL password (for init)   |
-| `SFTP_HOST`         | SFTP server hostname             |
-| `SFTP_PORT`         | SFTP port (usually 22)           |
-| `SFTP_USERNAME`     | SFTP username                    |
-| `SFTP_PASSWORD`     | SFTP password                    |
-| `SFTP_BASE_PATH`    | Remote base path (e.g. /weddings)|
-| `SFTP_PUBLIC_BASE_URL` | Public URL for images         |
+| Key | Purpose |
+|---|---|
+| `DB_CONNECTION` | PostgreSQL connection string |
+| `DB_PASSWORD` | PostgreSQL password |
+| `APP_BASE_URL` | Public base URL used in device config and QR links |
+| `JWT_SECRET` | JWT signing secret |
+| `JWT_ISSUER` | JWT issuer |
+| `JWT_AUDIENCE` | JWT audience |
+| `SFTP_HOST` | SFTP host |
+| `SFTP_PORT` | SFTP port |
+| `SFTP_USERNAME` | SFTP username |
+| `SFTP_PASSWORD` | SFTP password |
+| `SFTP_BASE_PATH` | Remote storage root |
+| `SFTP_PUBLIC_BASE_URL` | Public photo host if applicable |
 
-## SFTP Storage Layout
+### Scheduled jobs
 
-```
-/weddings/
-  {eventId}/
-    couple/     # Couple-uploaded portraits
-      {uuid}.jpg
-    guests/     # Photobooth captures
-      {uuid}.jpg
-```
+The cleanup CronJob:
 
-## GDPR Compliance
+- deletes expired events and files
+- removes expired device nonces
+- marks stale devices offline
 
-- **EXIF stripping**: All JPEG EXIF/APP1 metadata removed on upload
-- **Auto-deletion**: Background job runs every 6 hours; CronJob runs daily at 3 AM
-- **Configurable retention**: Per-event (default 90 days after event date)
-- **No local file storage**: Images exist only on SFTP
-- **Secure tokens**: 256-bit random tokens for couple upload links
-- **No directory listing**: Nginx `autoindex off`, no public SFTP listing
-- **Manual deletion**: `DELETE /api/events/{id}` removes DB records + SFTP files
+## Security
 
-## Security Features
+- RSA public/private key auth for booth devices
+- replay protection with nonce + timestamp
+- JWT auth for admins and gallery users
+- rate limiting for auth and upload endpoints
+- SFTP isolated behind the API
+- no direct booth access to storage credentials
+- HTTPS-ready Kubernetes ingress setup
 
-- File type validation (magic bytes + extension + content-type)
-- 10 MB file size limit (middleware + controller-level)
-- Rate limiting (30 uploads/minute per IP, 20 requests/second global)
-- Constant-time token comparison (prevents timing attacks)
-- Security headers (X-Frame-Options, X-Content-Type-Options, CSP)
-- Non-guessable filenames (UUID-based)
-- Token validation via server-side endpoint (no client-side token exposure)
-
-## NX Commands
+## Verification Commands
 
 ```bash
-# API
-npx nx run api:build        # Build API
-npx nx run api:serve        # Run API
-npx nx run api:watch        # Run API with hot-reload
-
-# Frontend
-npx nx run web:dev          # Start dev server
-npx nx run web:build        # Production build
-npx nx run web:preview      # Preview production build
+dotnet build apps/api/Photobooth.Api.csproj
+dotnet build apps/client/Photobooth.Client.csproj
+npm --prefix apps/web run build
 ```

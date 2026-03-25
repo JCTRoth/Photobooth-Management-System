@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Photobooth.Api.Data;
@@ -11,9 +12,11 @@ using Photobooth.Api.Data;
 namespace Photobooth.Api.Data.Migrations
 {
     [DbContext(typeof(PhotoboothDbContext))]
-    partial class PhotoboothDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325151320_AddDeviceManagement")]
+    partial class AddDeviceManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -202,11 +205,6 @@ namespace Photobooth.Api.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
-
-                    b.Property<string>("SlideshowAlbumsJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("slideshow_albums_json");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

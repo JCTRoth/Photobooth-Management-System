@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getEvent, getEventImages, getImageFileUrl } from '@/services/api';
+import { getDevices, getEvent, getEventImages, getImageFileUrl } from '@/services/api';
 import type { EventResponse, ImageResponse } from '@/types/api';
+import type { DeviceSummary } from '@/types/device';
 import { MarriageInvitePanel } from '@/components/MarriageInvitePanel';
 
 export function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<EventResponse | null>(null);
   const [images, setImages] = useState<ImageResponse[]>([]);
+  const [assignedDevices, setAssignedDevices] = useState<DeviceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,12 +17,15 @@ export function EventDetail() {
     if (!eventId) return;
     try {
       setLoading(true);
-      const [ev, imgs] = await Promise.all([
+      setError(null);
+      const [ev, imgs, deviceData] = await Promise.all([
         getEvent(eventId),
         getEventImages(eventId),
+        getDevices(),
       ]);
       setEvent(ev);
       setImages(imgs.images);
+      setAssignedDevices(deviceData.devices.filter((device) => device.assignedEvent?.eventId === eventId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
@@ -49,6 +54,16 @@ export function EventDetail() {
   const isExpired = new Date(event.expiresAt) < new Date();
   const coupleImages = images.filter((i) => i.type === 'Couple');
   const guestImages = images.filter((i) => i.type === 'Guest');
+  const getAlbumImageCount = (source: string) => {
+    switch (source) {
+      case 'guest':
+        return guestImages.length;
+      case 'couple':
+        return coupleImages.length;
+      default:
+        return images.length;
+    }
+  };
 
   return (
     <>
@@ -80,15 +95,75 @@ export function EventDetail() {
         <div className="card">
           <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Slideshow</div>
           <a
-            href={`/slideshow/${event.id}`}
+            href={`/slideshow/${event.id}${event.slideshowAlbums[0] ? `?album=${encodeURIComponent(event.slideshowAlbums[0].slug)}` : ''}`}
             target="_blank"
             rel="noreferrer"
             style={{ fontSize: '1.2rem', marginTop: 4, display: 'block' }}
           >
-            🖥 Open
+            🖥 Open {event.slideshowAlbums[0]?.name ?? 'Show'}
           </a>
         </div>
       </div>
+
+      <section className="card" style={{ marginBottom: 32 }}>
+        <div className="section-header">
+          <div>
+            <h2 style={{ marginBottom: 4 }}>Assigned Photobooths</h2>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Devices currently mapped to this event and allowed to upload guest photos.
+            </p>
+          </div>
+          <Link to="/admin/devices" className="copy-btn">
+            Manage Devices
+          </Link>
+        </div>
+
+        {assignedDevices.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>
+            No photobooth device is assigned yet. Guest uploads from booths will stay blocked until you assign one.
+          </p>
+        ) : (
+          <div className="device-chip-grid">
+            {assignedDevices.map((device) => (
+              <Link key={device.id} to={`/admin/devices/${device.id}`} className="device-chip">
+                <strong>{device.name}</strong>
+                <span>{device.connectivity === 'online' ? 'Online now' : device.lastSeenAt ? `Last seen ${new Date(device.lastSeenAt).toLocaleString()}` : 'Never seen'}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="card" style={{ marginBottom: 32 }}>
+        <div className="section-header">
+          <div>
+            <h2 style={{ marginBottom: 4 }}>Slideshow Albums</h2>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Each album can focus on a different photo set and display mode for the public slideshow screen.
+            </p>
+          </div>
+        </div>
+
+        <div className="slideshow-album-card-grid">
+          {event.slideshowAlbums.map((album) => (
+            <a
+              key={album.slug}
+              href={`/slideshow/${event.id}?album=${encodeURIComponent(album.slug)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="slideshow-album-card"
+            >
+              <span className="slideshow-album-card-mode">{album.mode}</span>
+              <strong>{album.name}</strong>
+              <p>{album.source === 'all' ? 'All photos' : album.source === 'guest' ? 'Guest uploads only' : 'Couple portraits only'}</p>
+              <div className="slideshow-album-card-footer">
+                <span>{getAlbumImageCount(album.source)} photos</span>
+                <span>Open album</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
 
       {coupleImages.length > 0 && (
         <section style={{ marginBottom: 32 }}>
