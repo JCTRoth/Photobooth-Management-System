@@ -2,6 +2,13 @@
 
 Production-ready wedding photobooth platform for managing multiple booth devices, central event assignments, signed guest uploads, QR downloads, and SFTP-backed image storage.
 
+## Screenshots
+
+Screenshots from development and the admin panel:
+
+![Upload flow and SFTP storage preview](docs/2026-03-25_17-15.png)
+
+
 ## Architecture
 
 ```text
@@ -275,16 +282,6 @@ The cleanup CronJob:
 - SFTP isolated behind the API
 - no direct booth access to storage credentials
 - HTTPS-ready Kubernetes ingress setup
-
-## Screenshots
-
-Screenshots from development and the admin panel:
-
-![Event list and device assignment](docs/2026-03-25_16-50_2.png)
-
-![Admin device heartbeat and details](docs/2026-03-25_17-03.png)
-
-![Upload flow and SFTP storage preview](docs/2026-03-25_17-15.png)
 
 ## Verification Commands
 
