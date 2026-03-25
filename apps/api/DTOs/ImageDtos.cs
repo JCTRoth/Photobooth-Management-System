@@ -9,6 +9,13 @@ public record ImageResponse
     public DateTime CreatedAt { get; init; }
     public required string Url { get; init; }
     public required string DownloadUrl { get; init; }
+    public string? Caption { get; init; }
+}
+
+public record UpdateCaptionRequest
+{
+    [System.ComponentModel.DataAnnotations.MaxLength(500)]
+    public string? Caption { get; init; }
 }
 
 public record ImageListResponse

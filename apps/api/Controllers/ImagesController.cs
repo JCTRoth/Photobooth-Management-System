@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Photobooth.Api.DTOs;
 using Photobooth.Api.Services;
@@ -46,4 +47,55 @@ public class ImagesController : ControllerBase
             return NotFound();
         }
     }
+
+    /// <summary>
+    /// Delete an image. Requires Admin role or MarriageUser with access to the event.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin,MarriageUser")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var image = await _imageService.GetByIdAsync(id, ct);
+            if (image is null) return NotFound();
+
+            // MarriageUser may only delete images from their own event
+            if (User.IsInRole("MarriageUser"))
+            {
+                var eventIdClaim = User.FindFirst("eventId")?.Value;
+                if (eventIdClaim is null || image.EventId.ToString() != eventIdClaim)
+                    return Forbid();
+            }
+
+            await _imageService.DeleteAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Update image caption. Requires Admin role or MarriageUser with access to the event.
+    /// </summary>
+    [HttpPatch("{id:guid}/caption")]
+    [Authorize(Roles = "Admin,MarriageUser")]
+    public async Task<ActionResult<ImageResponse>> UpdateCaption(Guid id, [FromBody] UpdateCaptionRequest req, CancellationToken ct)
+    {
+        var image = await _imageService.GetByIdAsync(id, ct);
+        if (image is null) return NotFound();
+
+        if (User.IsInRole("MarriageUser"))
+        {
+            var eventIdClaim = User.FindFirst("eventId")?.Value;
+            if (eventIdClaim is null || image.EventId.ToString() != eventIdClaim)
+                return Forbid();
+        }
+
+        var updated = await _imageService.UpdateCaptionAsync(id, req.Caption, ct);
+        return updated is null ? NotFound() : Ok(updated);
+    }
 }
+

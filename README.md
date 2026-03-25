@@ -87,10 +87,10 @@ dotnet ef database update --project apps/api/Photobooth.Api.csproj
 
 ```bash
 # Terminal 1
-ASPNETCORE_ENVIRONMENT=Development dotnet run --project apps/api/Photobooth.Api.csproj --urls http://localhost:5062
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project apps/api/Photobooth.Api.csproj
 ```
 
-The API runs at `http://localhost:5062` with Swagger UI at `/swagger`.
+The API runs at `http://localhost:5000` with Swagger UI at `/swagger`.
 In development mode, files are stored locally (no SFTP server needed).
 
 ### 4. Start Frontend
@@ -100,7 +100,8 @@ In development mode, files are stored locally (no SFTP server needed).
 cd apps/web && npm install && npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` with API proxy configured.
+The frontend runs at `http://localhost:5173` with API proxy configured for `http://localhost:5000` by default.
+Set `VITE_API_PROXY_TARGET` if you intentionally run the API on another port.
 
 ### 5. (Alternative) Docker Compose
 

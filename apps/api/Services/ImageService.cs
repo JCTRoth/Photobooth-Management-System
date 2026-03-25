@@ -13,6 +13,8 @@ public interface IImageService
     Task<ImageResponse?> GetByIdAsync(Guid imageId, CancellationToken ct = default);
     Task<ImageListResponse> GetByEventIdAsync(Guid eventId, CancellationToken ct = default);
     Task<Stream> GetImageStreamAsync(Guid imageId, CancellationToken ct = default);
+    Task DeleteAsync(Guid imageId, CancellationToken ct = default);
+    Task<ImageResponse?> UpdateCaptionAsync(Guid imageId, string? caption, CancellationToken ct = default);
 }
 
 public class ImageService : IImageService
@@ -221,6 +223,24 @@ public class ImageService : IImageService
         }
     }
 
+    public async Task DeleteAsync(Guid imageId, CancellationToken ct = default)
+    {
+        var image = await _imageRepo.GetByIdAsync(imageId, ct)
+            ?? throw new KeyNotFoundException($"Image {imageId} not found");
+        var subfolder = image.Type == ImageType.Guest ? "guests" : "couple";
+        await _sftpStorage.DeleteAsync(image.EventId, subfolder, image.Filename, ct);
+        await _imageRepo.DeleteAsync(image, ct);
+    }
+
+    public async Task<ImageResponse?> UpdateCaptionAsync(Guid imageId, string? caption, CancellationToken ct = default)
+    {
+        var image = await _imageRepo.GetByIdAsync(imageId, ct);
+        if (image is null) return null;
+        image.Caption = caption;
+        await _imageRepo.UpdateAsync(image, ct);
+        return MapToResponse(image);
+    }
+
     private ImageResponse MapToResponse(Image image)
     {
         var subfolder = image.Type == ImageType.Guest ? "guests" : "couple";
@@ -232,7 +252,8 @@ public class ImageService : IImageService
             Type = image.Type.ToString(),
             CreatedAt = image.CreatedAt,
             Url = $"/api/images/{image.Id}/file",
-            DownloadUrl = $"/d/{image.Id}"
+            DownloadUrl = $"/d/{image.Id}",
+            Caption = image.Caption
         };
     }
 }

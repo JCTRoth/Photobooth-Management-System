@@ -1,5 +1,8 @@
+using System.Text;
 using AspNetCoreRateLimit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Photobooth.Api.Configuration;
 using Photobooth.Api.Data;
 using Photobooth.Api.Jobs;
@@ -50,6 +53,8 @@ if (args.Contains("--cleanup-only"))
 // --- Configuration ---
 builder.Services.Configure<SftpSettings>(builder.Configuration.GetSection(SftpSettings.SectionName));
 builder.Services.Configure<UploadSettings>(builder.Configuration.GetSection(UploadSettings.SectionName));
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 
 // --- Database ---
 builder.Services.AddDbContext<PhotoboothDbContext>(options =>
@@ -73,6 +78,28 @@ else
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IZipService, ZipService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISmtpConfigurationService, SmtpConfigurationService>();
+
+// --- JWT Authentication ---
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()!;
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
 
 // --- Background Jobs ---
 builder.Services.AddHostedService<GdprCleanupJob>();
@@ -126,6 +153,9 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseMiddleware<FileValidationMiddleware>();
 app.MapControllers();
 
@@ -135,6 +165,29 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PhotoboothDbContext>();
     await db.Database.MigrateAsync();
+}
+
+// --- Bootstrap default admin if no admin exists ---
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PhotoboothDbContext>();
+    var auth = scope.ServiceProvider.GetRequiredService<IAuthService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    if (!await db.AdminUsers.AnyAsync())
+    {
+        db.AdminUsers.Add(new()
+        {
+            LoginId = "Admin",
+            Email = "admin@localhost",
+            PasswordHash = auth.HashPassword("Admin"),
+            IsActive = true,
+            MustChangePassword = true,
+            IsBootstrap = true
+        });
+        await db.SaveChangesAsync();
+        logger.LogWarning("Bootstrap admin created with default credentials (Admin/Admin). Change password immediately.");
+    }
 }
 
 await app.RunAsync();

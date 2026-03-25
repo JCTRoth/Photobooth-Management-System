@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getEvent, getEventImages, getImageFileUrl } from '@/services/api';
 import type { EventResponse, ImageResponse } from '@/types/api';
+import { MarriageInvitePanel } from '@/components/MarriageInvitePanel';
 
 export function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -40,7 +41,7 @@ export function EventDetail() {
       <div className="card" style={{ padding: 48, textAlign: 'center' }}>
         <h2 style={{ color: 'var(--danger)' }}>Event Not Found</h2>
         <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>{error}</p>
-        <Link to="/" style={{ marginTop: 16, display: 'inline-block' }}>← Back to Events</Link>
+        <Link to="/admin" style={{ marginTop: 16, display: 'inline-block' }}>Back to Events</Link>
       </div>
     );
   }
@@ -53,8 +54,8 @@ export function EventDetail() {
     <>
       <div className="page-header">
         <div>
-          <Link to="/" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            ← Back to Events
+          <Link to="/admin" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            Back to Events
           </Link>
           <h1 style={{ marginTop: 4 }}>{event.name}</h1>
         </div>
@@ -142,6 +143,8 @@ export function EventDetail() {
           </p>
         </div>
       )}
+
+      <MarriageInvitePanel eventId={event.id} />
     </>
   );
 }

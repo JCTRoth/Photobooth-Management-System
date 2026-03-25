@@ -1,38 +1,106 @@
-import { BrowserRouter, Routes, Route, Link, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AdminDashboard } from '@/pages/AdminDashboard';
 import { EventDetail } from '@/pages/EventDetail';
 import { CoupleUpload } from '@/pages/CoupleUpload';
 import { DownloadPage } from '@/pages/DownloadPage';
 import { SlideshowPage } from '@/pages/SlideshowPage';
+import { AdminLogin } from '@/pages/AdminLogin';
+import { MarriageLogin } from '@/pages/MarriageLogin';
+import { MyGallery } from '@/pages/MyGallery';
+import { AdminChangePassword } from '@/pages/AdminChangePassword';
+import { AdminSmtpSettings } from '@/pages/AdminSmtpSettings';
+import { LandingPage } from '@/pages/LandingPage';
+import { RequireAuth } from '@/components/RequireAuth';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { configureAuth, logout } from '@/services/api';
 import '@/index.css';
+
+function ApiConfigurer() {
+  const { accessToken, refreshAccessToken } = useAuth();
+  useEffect(() => {
+    configureAuth(() => accessToken, refreshAccessToken);
+  }, [accessToken, refreshAccessToken]);
+  return null;
+}
 
 export function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Admin routes */}
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="events/:eventId" element={<EventDetail />} />
-        </Route>
+    <AuthProvider>
+      <ApiConfigurer />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Public routes - no nav */}
-        <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
-        <Route path="/download/:imageId" element={<DownloadPage />} />
-        <Route path="/slideshow/:eventId" element={<SlideshowPage />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Admin login */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin/change-password"
+            element={
+              <RequireAuth role="Admin">
+                <AdminChangePassword />
+              </RequireAuth>
+            }
+          />
+
+          {/* Marriage user login */}
+          <Route path="/login" element={<MarriageLogin />} />
+
+          {/* Admin protected routes */}
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth role="Admin">
+                <AdminLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="events/:eventId" element={<EventDetail />} />
+            <Route path="settings/smtp" element={<AdminSmtpSettings />} />
+          </Route>
+
+          {/* Marriage user protected routes */}
+          <Route
+            path="/my-gallery"
+            element={
+              <RequireAuth role="MarriageUser">
+                <MyGallery />
+              </RequireAuth>
+            }
+          />
+
+          {/* Public routes - no auth */}
+          <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
+          <Route path="/download/:imageId" element={<DownloadPage />} />
+          <Route path="/slideshow/:eventId" element={<SlideshowPage />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
 function AdminLayout() {
+  const { clearAuth } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    clearAuth();
+    navigate('/', { replace: true });
+  };
+
   return (
     <>
       <nav className="nav">
-        <Link to="/" className="nav-brand">
-          📸 Photobooth Admin
+        <Link to="/admin" className="nav-brand">
+          Photobooth Admin
         </Link>
-        <Link to="/">Events</Link>
+        <Link to="/admin">Events</Link>
+        <Link to="/admin/settings/smtp">SMTP</Link>
+        <button className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={handleLogout}>
+          Log out
+        </button>
       </nav>
       <div className="container">
         <Outlet />

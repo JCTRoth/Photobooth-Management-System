@@ -33,4 +33,5 @@ public class Event
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<Image> Images { get; set; } = new List<Image>();
+    public ICollection<MarriageEmail> MarriageEmails { get; set; } = new List<MarriageEmail>();
 }

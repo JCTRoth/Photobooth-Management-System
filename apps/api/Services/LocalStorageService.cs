@@ -35,6 +35,13 @@ public sealed class LocalStorageService : ISftpStorageService
         return Task.FromResult(stream);
     }
 
+    public Task DeleteAsync(Guid eventId, string subfolder, string filename, CancellationToken ct = default)
+    {
+        var filePath = Path.Combine(_basePath, eventId.ToString(), subfolder, filename);
+        if (File.Exists(filePath)) File.Delete(filePath);
+        return Task.CompletedTask;
+    }
+
     public Task DeleteEventDirectoryAsync(Guid eventId, CancellationToken ct = default)
     {
         var dir = Path.Combine(_basePath, eventId.ToString());

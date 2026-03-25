@@ -12,7 +12,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Photobooth
     public PhotoboothDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<PhotoboothDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Database=photobooth;Username=photobooth;Password=changeme");
+        optionsBuilder.UseNpgsql("Host=localhost;Port=5433;Database=photobooth;Username=photobooth;Password=changeme");
         return new PhotoboothDbContext(optionsBuilder.Options);
     }
 }

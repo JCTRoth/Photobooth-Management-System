@@ -7,17 +7,45 @@ import type {
   UploadResponse,
   DownloadPageData,
 } from '@/types/api';
+import type {
+  AdminLoginResponse,
+  AdminVerifyResponse,
+  MarriageEmailStatus,
+  MarriageVerifyResponse,
+} from '@/types/auth';
 
 const BASE = '';
 
+let _getToken: (() => string | null) | null = null;
+let _refreshToken: (() => Promise<string | null>) | null = null;
+
+export function configureAuth(
+  getToken: () => string | null,
+  refreshToken: () => Promise<string | null>
+) {
+  _getToken = getToken;
+  _refreshToken = refreshToken;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+  const token = _getToken?.();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res = await fetch(`${BASE}${url}`, { ...options, headers, credentials: 'include' });
+
+  // 401 → try token refresh once
+  if (res.status === 401 && _refreshToken) {
+    const newToken = await _refreshToken();
+    if (newToken) {
+      headers['Authorization'] = `Bearer ${newToken}`;
+      res = await fetch(`${BASE}${url}`, { ...options, headers, credentials: 'include' });
+    }
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);
@@ -119,4 +147,164 @@ export function getImageFileUrl(imageId: string): string {
 
 export function getZipDownloadUrl(imageId: string): string {
   return `${BASE}/api/download/${imageId}/zip`;
+}
+
+// --- Auth ---
+
+export async function adminLogin(identifier: string, password: string): Promise<AdminLoginResponse> {
+  const res = await fetch(`${BASE}/api/auth/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, password }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Login failed');
+  }
+  return res.json();
+}
+
+export async function adminVerify(identifier: string, code: string): Promise<AdminVerifyResponse> {
+  const res = await fetch(`${BASE}/api/auth/admin/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, code }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Invalid code');
+  }
+  return res.json();
+}
+
+export async function marriageRequestCode(email: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/auth/marriage/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Request failed');
+  }
+}
+
+export async function marriageVerify(email: string, code: string): Promise<MarriageVerifyResponse> {
+  const res = await fetch(`${BASE}/api/auth/marriage/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Invalid code');
+  }
+  return res.json();
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+}
+
+export async function changeAdminPassword(currentPassword: string, newPassword: string, email?: string): Promise<void> {
+  return request('/api/auth/admin/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword, email }),
+  });
+}
+
+export interface SmtpSettingsResponse {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+  useStartTls: boolean;
+  isVerified: boolean;
+  verifiedAt: string | null;
+}
+
+export interface SaveSmtpSettingsPayload {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+  useStartTls: boolean;
+}
+
+export async function getSmtpSettings(): Promise<SmtpSettingsResponse> {
+  return request('/api/admin/settings/smtp');
+}
+
+export async function saveSmtpSettings(payload: SaveSmtpSettingsPayload): Promise<SmtpSettingsResponse> {
+  return request('/api/admin/settings/smtp', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function testSmtpSettings(recipientEmail: string): Promise<{ message: string; otpReady: boolean }> {
+  return request('/api/admin/settings/smtp/test', {
+    method: 'POST',
+    body: JSON.stringify({ recipientEmail }),
+  });
+}
+
+// --- Marriage Invites (admin) ---
+
+export async function getMarriageInvites(eventId: string): Promise<MarriageEmailStatus[]> {
+  return request(`/api/events/${eventId}/invites`);
+}
+
+export async function addMarriageInvites(eventId: string, emails: string[]): Promise<MarriageEmailStatus[]> {
+  return request(`/api/events/${eventId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({ emails }),
+  });
+}
+
+export async function resendMarriageInvite(eventId: string, inviteId: string): Promise<void> {
+  return request(`/api/events/${eventId}/invites/${inviteId}/resend`, { method: 'POST' });
+}
+
+export async function removeMarriageInvite(eventId: string, inviteId: string): Promise<void> {
+  const token = _getToken?.();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE}/api/events/${eventId}/invites/${inviteId}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) throw new Error('Delete failed');
+}
+
+// --- Image mutations ---
+
+export async function deleteImage(imageId: string): Promise<void> {
+  const token = _getToken?.();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE}/api/images/${imageId}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) throw new Error('Delete failed');
+}
+
+export async function updateImageCaption(imageId: string, caption: string | null): Promise<void> {
+  return request(`/api/images/${imageId}/caption`, {
+    method: 'PATCH',
+    body: JSON.stringify({ caption }),
+  });
 }

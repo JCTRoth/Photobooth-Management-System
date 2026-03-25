@@ -31,6 +31,10 @@ public class Image
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [MaxLength(500)]
+    [Column("caption")]
+    public string? Caption { get; set; }
+
     [ForeignKey(nameof(EventId))]
     public Event? Event { get; set; }
 }

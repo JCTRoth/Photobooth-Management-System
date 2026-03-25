@@ -62,7 +62,7 @@ function EventRow({
   return (
     <tr>
       <td style={{ fontWeight: 500 }}>
-        <Link to={`/events/${event.id}`}>{event.name}</Link>
+        <Link to={`/admin/events/${event.id}`}>{event.name}</Link>
       </td>
       <td>{event.date}</td>
       <td>{event.imageCount}</td>

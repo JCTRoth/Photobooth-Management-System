@@ -11,6 +11,8 @@ public interface IImageRepository
     Task<IReadOnlyList<Image>> GetByEventIdAndTypeAsync(Guid eventId, ImageType type, CancellationToken ct = default);
     Task<Image> CreateAsync(Image entity, CancellationToken ct = default);
     Task DeleteRangeAsync(IEnumerable<Image> entities, CancellationToken ct = default);
+    Task DeleteAsync(Image entity, CancellationToken ct = default);
+    Task UpdateAsync(Image entity, CancellationToken ct = default);
 }
 
 public class ImageRepository : IImageRepository
@@ -42,6 +44,18 @@ public class ImageRepository : IImageRepository
     public async Task DeleteRangeAsync(IEnumerable<Image> entities, CancellationToken ct = default)
     {
         _db.Images.RemoveRange(entities);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(Image entity, CancellationToken ct = default)
+    {
+        _db.Images.Remove(entity);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(Image entity, CancellationToken ct = default)
+    {
+        _db.Images.Update(entity);
         await _db.SaveChangesAsync(ct);
     }
 }

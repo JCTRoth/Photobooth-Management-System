@@ -8,6 +8,7 @@ public interface ISftpStorageService
 {
     Task UploadAsync(Guid eventId, string subfolder, string filename, Stream content, CancellationToken ct = default);
     Task<Stream> DownloadAsync(Guid eventId, string subfolder, string filename, CancellationToken ct = default);
+    Task DeleteAsync(Guid eventId, string subfolder, string filename, CancellationToken ct = default);
     Task DeleteEventDirectoryAsync(Guid eventId, CancellationToken ct = default);
     string GetPublicUrl(Guid eventId, string subfolder, string filename);
 }
@@ -42,6 +43,13 @@ public class SftpStorageService : ISftpStorageService, IDisposable
         await Task.Run(() => client.DownloadFile(remotePath, memoryStream), ct);
         memoryStream.Position = 0;
         return memoryStream;
+    }
+
+    public async Task DeleteAsync(Guid eventId, string subfolder, string filename, CancellationToken ct = default)
+    {
+        var client = await GetConnectedClientAsync(ct);
+        var remotePath = BuildPath(eventId, subfolder, filename);
+        await Task.Run(() => { if (client.Exists(remotePath)) client.DeleteFile(remotePath); }, ct);
     }
 
     public async Task DeleteEventDirectoryAsync(Guid eventId, CancellationToken ct = default)

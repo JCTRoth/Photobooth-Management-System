@@ -31,6 +31,7 @@ export interface ImageResponse {
   eventId: string;
   filename: string;
   type: 'Guest' | 'Couple';
+  caption?: string | null;
   createdAt: string;
   url: string;
   downloadUrl: string;
