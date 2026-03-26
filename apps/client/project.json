@@ -2,6 +2,7 @@
   "name": "client",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
+  "root": "apps/client",
   "sourceRoot": "apps/client",
   "targets": {
     "build": {

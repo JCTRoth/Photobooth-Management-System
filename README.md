@@ -4,7 +4,7 @@ Production-ready wedding photobooth platform for managing multiple booth devices
 
 ## Screenshots
 
-Screenshots from development and the admin panel:
+Screenshots from landing page:
 
 ![Upload flow and SFTP storage preview](docs/2026-03-25_17-15.png)
 
@@ -19,16 +19,16 @@ Screenshots from development and the admin panel:
                                          │ HTTPS
                                          ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              ASP.NET Core API                               │
-│  JWT admin auth • device signature verification • event management • SFTP   │
-│  device registration • heartbeat tracking • signed upload validation        │
+│                              ASP.NET Core API                                │
+│  JWT admin auth • device signature verification • event management • SFTP    │
+│  device registration • heartbeat tracking • signed upload validation         │
 └──────────────┬───────────────────────────────┬───────────────────────────────┘
                │                               │
                │ EF Core / Npgsql             │ SSH / SFTP
                ▼                               ▼
       ┌──────────────────┐            ┌──────────────────────┐
-      │   PostgreSQL 16   │            │   SFTP image store   │
-      │ events/devices/...│            │ /weddings/{eventId}  │
+      │   PostgreSQL 16  │            │   SFTP image store   │
+      │ events/devices/..│            │ /weddings/{eventId}  │
       └──────────────────┘            └──────────────────────┘
                ▲
                │ HTTPS + RSA signatures + nonce + timestamp

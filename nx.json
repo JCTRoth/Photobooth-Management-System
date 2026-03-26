@@ -25,5 +25,21 @@
     "appsDir": "apps",
     "libsDir": "libs"
   },
+  "npmScope": "photobooth",
+  "implicitDependencies": {
+    "package.json": {
+      "inputs": ["default"]
+    }
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nx/workspace/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "test", "lint"],
+        "strictlyOrderedTargets": ["build"],
+        "parallel": 3
+      }
+    }
+  },
   "analytics": true
 }
