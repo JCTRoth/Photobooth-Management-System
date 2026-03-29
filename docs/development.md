@@ -222,6 +222,7 @@ Run these before wrapping up a feature:
 dotnet build apps/api/Photobooth.Api.csproj
 dotnet build apps/client/Photobooth.Client.csproj
 npm --prefix apps/web run build
+npm run test:stack
 ```
 
 For device/auth changes, also verify:

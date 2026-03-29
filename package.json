@@ -13,6 +13,7 @@
     "client:run": "npx nx run client:run",
     "client:register": "npx nx run client:register",
     "client:upload-file": "npx nx run client:upload-file",
+    "test:stack": "bash ./scripts/test-local-stack.sh",
     "web:dev": "npx nx run web:dev",
     "web:build": "npx nx run web:build",
     "web:preview": "npx nx run web:preview"
