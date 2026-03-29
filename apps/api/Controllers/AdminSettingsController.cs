@@ -54,8 +54,8 @@ public record SaveSmtpSettingsRequest
 {
     [Required, MinLength(1)] public required string Host { get; init; }
     [Range(1, 65535)] public int Port { get; init; } = 587;
-    [Required] public required string Username { get; init; }
-    [Required] public required string Password { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public string Password { get; init; } = string.Empty;
     [Required, EmailAddress] public required string FromAddress { get; init; }
     [Required] public required string FromName { get; init; }
     public bool UseSsl { get; init; }

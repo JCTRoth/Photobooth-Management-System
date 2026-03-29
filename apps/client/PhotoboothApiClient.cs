@@ -30,6 +30,7 @@ public sealed class PhotoboothApiClient
         string configPath,
         string? watchDirectory,
         string? publicKeyPem,
+        string? privateKeyPem,
         CancellationToken ct)
     {
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
@@ -56,7 +57,7 @@ public sealed class PhotoboothApiClient
         {
             ServerUrl = serverUrl.TrimEnd('/'),
             DeviceId = payload.DeviceId,
-            PrivateKey = payload.PrivateKeyPem ?? "<provide-the-matching-private-key>",
+            PrivateKey = privateKeyPem ?? payload.PrivateKeyPem ?? "<provide-the-matching-private-key>",
             DeviceName = payload.Name,
             WatchDirectory = string.IsNullOrWhiteSpace(watchDirectory) ? null : watchDirectory,
         };
@@ -73,14 +74,19 @@ public sealed class PhotoboothApiClient
             ?? throw new InvalidOperationException("Config endpoint returned an empty response.");
     }
 
-    public async Task SendHeartbeatAsync(string status, Guid? currentEventId, CancellationToken ct)
+    public async Task SendHeartbeatAsync(
+        string status,
+        Guid? currentEventId,
+        DeviceRuntimeTelemetryRequest? runtime,
+        CancellationToken ct)
     {
         var body = new HeartbeatRequest
         {
             DeviceId = _config.DeviceId,
             Timestamp = DateTimeOffset.UtcNow,
             Status = status,
-            CurrentEventId = currentEventId
+            CurrentEventId = currentEventId,
+            Runtime = runtime
         };
 
         var content = JsonContent.Create(body, options: JsonOptions);
@@ -115,14 +121,7 @@ public sealed class PhotoboothApiClient
         var config = await JsonSerializer.DeserializeAsync<PhotoboothClientConfig>(stream, JsonOptions, ct)
             ?? throw new InvalidOperationException("Device config file is empty.");
 
-        if (string.IsNullOrWhiteSpace(config.ServerUrl) ||
-            config.DeviceId == Guid.Empty ||
-            string.IsNullOrWhiteSpace(config.PrivateKey))
-        {
-            throw new InvalidOperationException("Device config is missing serverUrl, deviceId, or privateKey.");
-        }
-
-        return config;
+        return ValidateConfig(config);
     }
 
     public static async Task SaveConfigAsync(string configPath, PhotoboothClientConfig config, CancellationToken ct)
@@ -135,6 +134,14 @@ public sealed class PhotoboothApiClient
 
         await using var stream = File.Create(configPath);
         await JsonSerializer.SerializeAsync(stream, config, JsonOptions, ct);
+    }
+
+    public static PhotoboothClientConfig ParseConfig(string rawJson)
+    {
+        var config = JsonSerializer.Deserialize<PhotoboothClientConfig>(rawJson, JsonOptions)
+            ?? throw new InvalidOperationException("Device config file is empty.");
+
+        return ValidateConfig(config);
     }
 
     private async Task<HttpResponseMessage> SendSignedAsync(
@@ -229,5 +236,17 @@ public sealed class PhotoboothApiClient
         }
 
         throw new InvalidOperationException($"API {(int)response.StatusCode}: {response.ReasonPhrase}");
+    }
+
+    private static PhotoboothClientConfig ValidateConfig(PhotoboothClientConfig config)
+    {
+        if (string.IsNullOrWhiteSpace(config.ServerUrl) ||
+            config.DeviceId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(config.PrivateKey))
+        {
+            throw new InvalidOperationException("Device config is missing serverUrl, deviceId, or privateKey.");
+        }
+
+        return config;
     }
 }

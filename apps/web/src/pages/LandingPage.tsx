@@ -1,16 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MarriageLoginPanel } from '@/components/MarriageLoginPanel';
-import { useAuth } from '@/context/AuthContext';
 
 export function LandingPage() {
-  const { isAuthenticated, role, eventName } = useAuth();
-
-  const portalLink = isAuthenticated
-    ? role === 'Admin'
-      ? { to: '/admin', label: 'Open admin dashboard' }
-      : { to: '/my-gallery', label: eventName ? `Continue to ${eventName}` : 'Open my gallery' }
-    : null;
-
   return (
     <main className="landing-page">
       <div className="landing-orb landing-orb-one" aria-hidden="true" />
@@ -36,11 +27,6 @@ export function LandingPage() {
               <span>Instant login codes</span>
               <span>Admin-managed events</span>
             </div>
-            {portalLink && (
-              <Link to={portalLink.to} className="landing-portal-link">
-                {portalLink.label}
-              </Link>
-            )}
           </div>
 
           <div className="landing-showcase" aria-hidden="true">
@@ -63,6 +49,7 @@ export function LandingPage() {
 
       <div className="landing-admin-entry">
         <Link to="/admin/login">Admin login</Link>
+        <Link to="/booth">Booth setup guide</Link>
       </div>
     </main>
   );

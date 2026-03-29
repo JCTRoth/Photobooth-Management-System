@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photobooth Device Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="device-manager">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">Photobooth</h1>
+        <p class="sidebar-subtitle">Device Manager</p>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#overview" class="nav-item active" data-section="overview">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Status Overview</span>
+        </a>
+        <a href="#setup" class="nav-item" data-section="setup">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Setup & Config</span>
+        </a>
+        <a href="#runtime" class="nav-item" data-section="runtime">
+          <span class="nav-icon">▶️</span>
+          <span class="nav-label">Runtime Control</span>
+        </a>
+        <a href="#details" class="nav-item" data-section="details">
+          <span class="nav-icon">ℹ️</span>
+          <span class="nav-label">Device Details</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-info">
+        <div class="info-item">
+          <span class="info-label">Machine</span>
+          <strong id="machine-name" class="info-value">Loading...</strong>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Client Version</span>
+          <strong id="client-version" class="info-value">Loading...</strong>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-content">
+          <div>
+            <p class="page-subtitle" id="page-subtitle">Real-time device status</p>
+            <h2 class="page-title">Status Overview</h2>
+          </div>
+          <div class="top-bar-right">
+            <span class="local-url" title="Click to copy">
+              <span class="url-label">Local URL:</span>
+              <strong id="local-url">Loading...</strong>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div id="flash" class="flash-container hidden"></div>
+
+      <!-- Setup Flow Info -->
+      <section class="info-banner">
+        <h3>Server-side Flow</h3>
+        <p><strong>How this booth fits the admin portal</strong></p>
+        <ol class="flow-steps">
+          <li>Open this local page on the booth, generate a key pair, and register the device with the central server.</li>
+          <li>Open the server admin UI, find the new device, and assign the correct wedding event.</li>
+          <li>The booth runtime picks up the wedding on the next config sync and reports its live state back to both sides.</li>
+        </ol>
+      </section>
+
+      <!-- Overview Section -->
+      <section id="overview" class="content-section active">
+        <div class="status-grid">
+          <div class="status-card">
+            <div class="status-icon" id="connection-icon">⚪</div>
+            <div class="status-content">
+              <span class="status-label">Backend Connection</span>
+              <strong id="connection-state" class="status-value">Waiting</strong>
+              <p id="connection-copy" class="status-detail">Waiting for first heartbeat...</p>
+            </div>
+          </div>
+          <div class="status-card">
+            <div class="status-icon" id="runner-icon">⏹️</div>
+            <div class="status-content">
+              <span class="status-label">Booth Runtime</span>
+              <strong id="runner-state" class="status-value">Stopped</strong>
+              <p id="runner-copy" class="status-detail">Process not running</p>
+            </div>
+          </div>
+          <div class="status-card">
+            <div class="status-icon" id="event-icon">🎭</div>
+            <div class="status-content">
+              <span class="status-label">Loaded Wedding</span>
+              <strong id="event-state" class="status-value">Unassigned</strong>
+              <p id="event-copy" class="status-detail">No event loaded yet</p>
+            </div>
+          </div>
+          <div class="status-card">
+            <div class="status-icon" id="upload-icon">📤</div>
+            <div class="status-content">
+              <span class="status-label">Latest Upload</span>
+              <strong id="upload-state" class="status-value">No uploads</strong>
+              <p id="upload-copy" class="status-detail">Waiting for first upload...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Setup Section -->
+      <section id="setup" class="content-section">
+        <h3 class="section-title">Device Setup & Configuration</h3>
+        
+        <div class="form-grid">
+          <div class="form-card">
+            <h4 class="card-title">Generate Security Keys</h4>
+            <p class="card-desc">Create an RSA key pair locally on this device</p>
+            <button class="button button-primary" id="generate-key-button">Generate Key Pair</button>
+            <div id="key-status" class="key-status hidden">
+              <span class="key-badge" id="key-badge">No key yet</span>
+              <p class="key-fingerprint">Fingerprint: <code id="key-fingerprint">Not generated</code></p>
+              <div class="key-details">
+                <div>
+                  <label>Public Key</label>
+                  <textarea id="public-key" readonly rows="6"></textarea>
+                </div>
+                <details class="private-key-section">
+                  <summary>Show Private Key</summary>
+                  <div class="private-key-container">
+                    <label>Private Key</label>
+                    <textarea id="private-key" readonly rows="8"></textarea>
+                    <p class="security-note">⚠️ Keep this private key secure. Do not share it.</p>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h4 class="card-title">Register Device</h4>
+            <p class="card-desc">Register this booth with the central server</p>
+            <form id="register-form" class="form-stack">
+              <div class="form-group">
+                <label for="server-url">Server URL</label>
+                <input id="server-url" type="url" placeholder="https://photobooth.example.com" required />
+              </div>
+              <div class="form-group">
+                <label for="device-name">Device Name</label>
+                <input id="device-name" type="text" placeholder="Booth A-1" maxlength="150" required />
+              </div>
+              <div class="form-group">
+                <label for="watch-directory">Watch Directory (Optional)</label>
+                <input id="watch-directory" type="text" placeholder="/opt/photobooth/output" />
+              </div>
+              <p class="form-hint">The server receives your public key only. Private key stays local.</p>
+              <button type="submit" class="button button-primary" id="register-button">Register Device</button>
+            </form>
+          </div>
+
+          <div class="form-card">
+            <h4 class="card-title">Import Configuration</h4>
+            <p class="card-desc">Use an existing device configuration JSON</p>
+            <div class="form-stack">
+              <textarea id="config-json" rows="8" placeholder='Paste photobooth-device.json here...'></textarea>
+              <button type="button" class="button button-secondary" id="import-config-button">Import Config</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Runtime Section -->
+      <section id="runtime" class="content-section">
+        <h3 class="section-title">Runtime Control</h3>
+        
+        <div class="control-panel">
+          <div class="control-group">
+            <h4 class="control-title">Booth Process</h4>
+            <p class="control-desc">Start or stop the local booth runtime</p>
+            <div class="button-group">
+              <button type="button" class="button button-success" id="start-runner-button">▶️ Start Runtime</button>
+              <button type="button" class="button button-danger" id="stop-runner-button">⏹️ Stop Runtime</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <h4 class="control-title">Configuration Management</h4>
+            <p class="control-desc">Download or manage device settings</p>
+            <a class="button button-secondary" href="/api/config/download" download>📥 Download Config</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Details Section -->
+      <section id="details" class="content-section">
+        <h3 class="section-title">Device Details & Stats</h3>
+        
+        <div class="details-grid">
+          <div class="detail-card">
+            <h4 class="detail-title">Configuration</h4>
+            <dl class="detail-list">
+              <div class="detail-row">
+                <dt>Device ID</dt>
+                <dd id="device-id">Not configured</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Config Path</dt>
+                <dd id="config-path">Loading...</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Server URL</dt>
+                <dd id="configured-server">Not configured</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Watch Folder</dt>
+                <dd id="configured-watch-directory">Not configured</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Allowed Extensions</dt>
+                <dd id="allowed-extensions">.jpg, .jpeg, .png</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="detail-card">
+            <h4 class="detail-title">Synchronization Status</h4>
+            <dl class="detail-list">
+              <div class="detail-row">
+                <dt>Last Config Sync</dt>
+                <dd id="last-config-sync">Not synced yet</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Last Heartbeat</dt>
+                <dd id="last-heartbeat">Not sent yet</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Watcher State</dt>
+                <dd id="watcher-state">Not configured</dd>
+              </div>
+              <div class="detail-row">
+                <dt>Pending Uploads</dt>
+                <dd id="pending-uploads">0</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

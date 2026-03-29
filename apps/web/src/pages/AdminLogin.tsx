@@ -16,6 +16,7 @@ export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const resetState = searchParams.get('reset');
 
   const identifierState =
     identifier.trim().length === 0 ? '' : identifier.trim().length >= 3 ? 'is-valid' : 'is-attention';
@@ -153,10 +154,19 @@ export function AdminLogin() {
                 password hardening.
               </p>
 
+              {resetState === 'success' && (
+                <p className="auth-success">
+                  Password reset completed. Log in with the new password below.
+                </p>
+              )}
+
               {error && <p className="auth-error">{error}</p>}
               <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? 'Checking…' : 'Continue'}
               </button>
+              <Link to="/admin/reset-password" className="admin-login-secondary-link">
+                Forgot your password?
+              </Link>
             </form>
           ) : (
             <form onSubmit={handleCode} className="auth-form admin-login-form">

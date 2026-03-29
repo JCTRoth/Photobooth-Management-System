@@ -15,6 +15,7 @@ import type {
 } from '@/types/device';
 import type {
   AdminLoginResponse,
+  AdminPasswordResetResponse,
   AdminVerifyResponse,
   MarriageEmailStatus,
   MarriageVerifyResponse,
@@ -31,6 +32,29 @@ export function configureAuth(
 ) {
   _getToken = getToken;
   _refreshToken = refreshToken;
+}
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  const contentType = res.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const body = await res.json().catch(() => null);
+    const message = body?.error || body?.message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  } else {
+    const text = (await res.text().catch(() => '')).trim();
+    if (text.length > 0) {
+      return text;
+    }
+  }
+
+  if (res.status >= 500 && contentType.includes('text/plain')) {
+    return 'The web app could not reach the API. Start the backend or set VITE_API_PROXY_TARGET to the correct API URL.';
+  }
+
+  return fallback;
 }
 
 async function fetchWithAuth(url: string, options?: RequestInit): Promise<Response> {
@@ -62,8 +86,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetchWithAuth(url, { ...options, headers });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${res.status}`);
+    throw new Error(await readErrorMessage(res, `Request failed: ${res.status}`));
   }
   return res.json();
 }
@@ -213,8 +236,7 @@ export async function adminLogin(identifier: string, password: string): Promise<
     credentials: 'include',
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || 'Login failed');
+    throw new Error(await readErrorMessage(res, 'Login failed'));
   }
   return res.json();
 }
@@ -227,8 +249,37 @@ export async function adminVerify(identifier: string, code: string): Promise<Adm
     credentials: 'include',
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || 'Invalid code');
+    throw new Error(await readErrorMessage(res, 'Invalid code'));
+  }
+  return res.json();
+}
+
+export async function requestAdminPasswordReset(identifier: string): Promise<AdminPasswordResetResponse> {
+  const res = await fetch(`${BASE}/api/auth/admin/password-reset/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, 'Password reset request failed'));
+  }
+  return res.json();
+}
+
+export async function confirmAdminPasswordReset(
+  identifier: string,
+  code: string,
+  newPassword: string
+): Promise<AdminPasswordResetResponse> {
+  const res = await fetch(`${BASE}/api/auth/admin/password-reset/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier, code, newPassword }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, 'Password reset failed'));
   }
   return res.json();
 }
@@ -241,8 +292,7 @@ export async function marriageRequestCode(email: string): Promise<void> {
     credentials: 'include',
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || 'Request failed');
+    throw new Error(await readErrorMessage(res, 'Request failed'));
   }
 }
 
@@ -254,8 +304,7 @@ export async function marriageVerify(email: string, code: string): Promise<Marri
     credentials: 'include',
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || 'Invalid code');
+    throw new Error(await readErrorMessage(res, 'Invalid code'));
   }
   return res.json();
 }

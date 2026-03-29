@@ -12,6 +12,8 @@ import { AdminChangePassword } from '@/pages/AdminChangePassword';
 import { AdminSmtpSettings } from '@/pages/AdminSmtpSettings';
 import { AdminDevicesDashboard } from '@/pages/AdminDevicesDashboard';
 import { AdminDeviceDetail } from '@/pages/AdminDeviceDetail';
+import { AdminResetPassword } from '@/pages/AdminResetPassword';
+import { BoothConsolePage } from '@/pages/BoothConsolePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { RequireAuth } from '@/components/RequireAuth';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -36,6 +38,7 @@ export function App() {
 
           {/* Admin login */}
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route
             path="/admin/change-password"
             element={
@@ -75,6 +78,7 @@ export function App() {
           />
 
           {/* Public routes - no auth */}
+          <Route path="/booth" element={<BoothConsolePage />} />
           <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
           <Route path="/download/:imageId" element={<DownloadPage />} />
           <Route path="/slideshow/:eventId" element={<SlideshowPage />} />

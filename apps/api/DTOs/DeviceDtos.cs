@@ -34,6 +34,7 @@ public record DeviceHeartbeatRequest
     public required string Status { get; init; }
 
     public Guid? CurrentEventId { get; init; }
+    public DeviceRuntimeTelemetryRequest? Runtime { get; init; }
 }
 
 public record DeviceHeartbeatResponse
@@ -57,6 +58,69 @@ public record DeviceAssignedEventResponse
     public DateTime ExpiresAt { get; init; }
 }
 
+public record DeviceRuntimeTelemetryRequest
+{
+    [MaxLength(64)]
+    public string? ClientVersion { get; init; }
+
+    [MaxLength(64)]
+    public string? RuntimeVersion { get; init; }
+
+    [MaxLength(255)]
+    public string? MachineName { get; init; }
+
+    [MaxLength(255)]
+    public string? LocalDashboardUrl { get; init; }
+
+    [MaxLength(500)]
+    public string? WatchDirectory { get; init; }
+
+    public DateTimeOffset? LastConfigSyncAt { get; init; }
+    public DateTimeOffset? LastEventLoadedAt { get; init; }
+
+    [MaxLength(200)]
+    public string? LoadedEventName { get; init; }
+
+    public DateTimeOffset? LastUploadAt { get; init; }
+
+    [MaxLength(20)]
+    public string? LastUploadStatus { get; init; }
+
+    [MaxLength(260)]
+    public string? LastUploadFileName { get; init; }
+
+    [MaxLength(500)]
+    public string? LastUploadError { get; init; }
+
+    [MaxLength(500)]
+    public string? LastHeartbeatError { get; init; }
+
+    [Range(0, int.MaxValue)]
+    public int PendingUploadCount { get; init; }
+
+    [MaxLength(20)]
+    public string? WatcherState { get; init; }
+}
+
+public record DeviceRuntimeTelemetryResponse
+{
+    public string? ClientVersion { get; init; }
+    public string? RuntimeVersion { get; init; }
+    public string? MachineName { get; init; }
+    public string? LocalDashboardUrl { get; init; }
+    public string? WatchDirectory { get; init; }
+    public DateTime? LastConfigSyncAt { get; init; }
+    public DateTime? LastEventLoadedAt { get; init; }
+    public string? LoadedEventName { get; init; }
+    public DateTime? LastUploadAt { get; init; }
+    public string? LastUploadStatus { get; init; }
+    public string? LastUploadFileName { get; init; }
+    public string? LastUploadError { get; init; }
+    public string? LastHeartbeatError { get; init; }
+    public string? WatcherState { get; init; }
+    public int PendingUploadCount { get; init; }
+}
+
 public record DeviceSummaryResponse
 {
     public Guid Id { get; init; }
@@ -67,6 +131,7 @@ public record DeviceSummaryResponse
     public string? PublicKeyFingerprint { get; init; }
     public DateTime CreatedAt { get; init; }
     public DeviceAssignedEventResponse? AssignedEvent { get; init; }
+    public DeviceRuntimeTelemetryResponse? Runtime { get; init; }
 }
 
 public record DeviceListResponse
@@ -86,6 +151,7 @@ public record DeviceDetailResponse
     public DateTime UpdatedAt { get; init; }
     public required string PublicKeyFingerprint { get; init; }
     public DeviceAssignedEventResponse? AssignedEvent { get; init; }
+    public DeviceRuntimeTelemetryResponse? Runtime { get; init; }
 }
 
 public record DeviceConfigResponse

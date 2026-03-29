@@ -13,6 +13,7 @@ public interface IEmailService
     Task SendVerificationEmailAsync(string to, string eventName, string verificationUrl, CancellationToken ct = default);
     Task SendLoginCodeAsync(string to, string code, CancellationToken ct = default);
     Task SendAdminTwoFactorCodeAsync(string to, string code, CancellationToken ct = default);
+    Task SendAdminPasswordResetAsync(string to, string loginId, string code, string resetUrl, CancellationToken ct = default);
 }
 
 public class EmailService : IEmailService
@@ -71,6 +72,27 @@ public class EmailService : IEmailService
               <p>Your two-factor verification code for admin access:</p>
               <p style="font-size:2.5rem;letter-spacing:0.3em;font-weight:700;color:#6366f1;margin:32px 0">{code}</p>
               <p style="color:#888;font-size:0.85rem">This code expires in <strong>10 minutes</strong>. If you didn't initiate this login, change your password immediately.</p>
+            </body></html>
+            """;
+        return SendAsync(to, subject, body, ct);
+    }
+
+    public Task SendAdminPasswordResetAsync(string to, string loginId, string code, string resetUrl, CancellationToken ct = default)
+    {
+        var subject = "Reset your admin password";
+        var body = $"""
+            <html><body style="font-family:sans-serif;max-width:600px;margin:auto">
+              <h2 style="color:#333">Admin Password Reset</h2>
+              <p>A password reset was requested for the admin account <strong>{loginId}</strong>.</p>
+              <p>Use the button below or enter the verification code manually. Both stay valid for <strong>10 minutes</strong>.</p>
+              <p style="margin:32px 0">
+                <a href="{resetUrl}"
+                   style="background:#1f7a5c;color:#fff;padding:14px 28px;text-decoration:none;border-radius:6px;font-size:1rem">
+                  Reset admin password
+                </a>
+              </p>
+              <p style="font-size:2.2rem;letter-spacing:0.3em;font-weight:700;color:#1f7a5c;margin:28px 0">{code}</p>
+              <p style="color:#888;font-size:0.85rem">If you did not request this reset, you can ignore this e-mail. Existing admin passwords remain unchanged until a new password is submitted successfully.</p>
             </body></html>
             """;
         return SendAsync(to, subject, body, ct);

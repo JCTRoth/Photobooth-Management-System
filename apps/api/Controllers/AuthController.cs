@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Memory;
 using Photobooth.Api.Data;
 using Photobooth.Api.Models;
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
     private readonly IMemoryCache _cache;
     private readonly ILogger<AuthController> _logger;
     private readonly ISmtpConfigurationService _smtpConfig;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         IAuthService auth,
@@ -38,7 +40,8 @@ public class AuthController : ControllerBase
         PhotoboothDbContext db,
         IMemoryCache cache,
         ILogger<AuthController> logger,
-        ISmtpConfigurationService smtpConfig)
+        ISmtpConfigurationService smtpConfig,
+        IConfiguration configuration)
     {
         _auth = auth;
         _email = email;
@@ -46,6 +49,7 @@ public class AuthController : ControllerBase
         _cache = cache;
         _logger = logger;
         _smtpConfig = smtpConfig;
+        _configuration = configuration;
     }
 
     // ==================== Admin Login (2-step) ====================
@@ -115,6 +119,84 @@ public class AuthController : ControllerBase
             role = "Admin",
             mustChangePassword = admin.MustChangePassword
         });
+    }
+
+    [HttpPost("admin/password-reset/request")]
+    public async Task<IActionResult> RequestAdminPasswordReset([FromBody] AdminPasswordResetRequest req, CancellationToken ct)
+    {
+        var otpReady = await _smtpConfig.IsOtpReadyAsync(ct);
+        if (!otpReady)
+        {
+            return Conflict(new
+            {
+                error = "Password reset is unavailable until SMTP is configured and verified."
+            });
+        }
+
+        var admin = await _auth.FindAdminAsync(req.Identifier, ct);
+        var rateLimitKey = admin?.Email ?? req.Identifier;
+        if (!CheckEmailRateLimit(rateLimitKey))
+            return StatusCode(429, new { error = "Too many requests, please try again later." });
+
+        if (admin is not null)
+        {
+            try
+            {
+                var code = await _auth.CreateLoginCodeAsync(admin.Id, LoginCodePurpose.AdminPasswordReset, null, ct);
+                var resetUrl = BuildFrontendUrl(
+                    "/admin/reset-password",
+                    new Dictionary<string, string?>
+                    {
+                        ["identifier"] = admin.Email,
+                        ["code"] = code
+                    });
+
+                await _email.SendAdminPasswordResetAsync(admin.Email, admin.LoginId, code, resetUrl, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send admin password reset email to {Email}", admin.Email);
+                return StatusCode(503, new { error = "We couldn't send the reset e-mail right now. Please try again shortly." });
+            }
+        }
+
+        return Ok(new
+        {
+            message = "If that admin account is registered, a password reset e-mail has been sent."
+        });
+    }
+
+    [HttpPost("admin/password-reset/confirm")]
+    public async Task<IActionResult> ConfirmAdminPasswordReset([FromBody] ConfirmAdminPasswordResetRequest req, CancellationToken ct)
+    {
+        var admin = await _auth.FindAdminAsync(req.Identifier, ct);
+        if (admin is null)
+            return Unauthorized(new { error = "Invalid or expired password reset code." });
+
+        var passwordError = AdminPasswordPolicy.Validate(req.NewPassword);
+        if (passwordError is not null)
+            return BadRequest(new { error = passwordError });
+
+        var valid = await _auth.ValidateLoginCodeAsync(admin.Id, req.Code, LoginCodePurpose.AdminPasswordReset, ct);
+        if (!valid)
+            return Unauthorized(new { error = "Invalid or expired password reset code." });
+
+        var pendingCodes = await _db.LoginCodes
+            .Where(code => code.SubjectId == admin.Id && code.UsedAt == null)
+            .ToListAsync(ct);
+        if (pendingCodes.Count > 0)
+            _db.LoginCodes.RemoveRange(pendingCodes);
+
+        admin.PasswordHash = _auth.HashPassword(req.NewPassword);
+        admin.MustChangePassword = false;
+        admin.IsBootstrap = false;
+        admin.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        await _auth.RevokeAllRefreshTokensAsync(admin.Id, "Admin", ct);
+
+        _logger.LogInformation("Admin password reset completed for {Email}", admin.Email);
+        return Ok(new { message = "Password updated. You can now log in with the new password." });
     }
 
     // ==================== Marriage Login (OTP) ====================
@@ -231,6 +313,10 @@ public class AuthController : ControllerBase
         if (await _db.AdminUsers.AnyAsync(ct))
             return Conflict(new { error = "Admin account already exists." });
 
+        var passwordError = AdminPasswordPolicy.Validate(req.Password);
+        if (passwordError is not null)
+            return BadRequest(new { error = passwordError });
+
         var admin = new AdminUser
         {
             LoginId = req.LoginId,
@@ -260,6 +346,10 @@ public class AuthController : ControllerBase
 
         if (!_auth.VerifyPassword(admin, req.CurrentPassword))
             return BadRequest(new { error = "Current password is incorrect." });
+
+        var passwordError = AdminPasswordPolicy.Validate(req.NewPassword, req.CurrentPassword);
+        if (passwordError is not null)
+            return BadRequest(new { error = passwordError });
 
         admin.PasswordHash = _auth.HashPassword(req.NewPassword);
         admin.MustChangePassword = false;
@@ -293,6 +383,23 @@ public class AuthController : ControllerBase
         _cache.Set(key, count + 1, TimeSpan.FromHours(1));
         return true;
     }
+
+    private string BuildFrontendUrl(string relativePath, IReadOnlyDictionary<string, string?>? query = null)
+    {
+        var baseUrl = (_configuration["AppBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
+        var builder = new UriBuilder($"{baseUrl}/{relativePath.TrimStart('/')}");
+
+        if (query is not null && query.Count > 0)
+        {
+            builder.Query = string.Join(
+                "&",
+                query
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry.Value))
+                    .Select(entry => $"{Uri.EscapeDataString(entry.Key)}={Uri.EscapeDataString(entry.Value!)}"));
+        }
+
+        return builder.Uri.ToString();
+    }
 }
 
 // --- DTOs ---
@@ -307,6 +414,18 @@ public record AdminVerifyRequest
 {
     [Required, MinLength(1)] public required string Identifier { get; init; }
     [Required, MinLength(6), MaxLength(6)] public required string Code { get; init; }
+}
+
+public record AdminPasswordResetRequest
+{
+    [Required, MinLength(1)] public required string Identifier { get; init; }
+}
+
+public record ConfirmAdminPasswordResetRequest
+{
+    [Required, MinLength(1)] public required string Identifier { get; init; }
+    [Required, MinLength(6), MaxLength(6)] public required string Code { get; init; }
+    [Required, MinLength(12)] public required string NewPassword { get; init; }
 }
 
 public record MarriageLoginRequest

@@ -9,6 +9,10 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
+function formatRuntimeValue(value: string | null, fallback = 'Not reported yet') {
+  return value && value.trim().length > 0 ? value : fallback;
+}
+
 export function AdminDeviceDetail() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const [device, setDevice] = useState<DeviceDetail | null>(null);
@@ -131,6 +135,16 @@ export function AdminDeviceDetail() {
           <strong>{device.publicKeyFingerprint}</strong>
           <p>Short SHA-256 fingerprint for quick verification during setup.</p>
         </div>
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Client Version</span>
+          <strong>{device.runtime?.clientVersion ?? 'Waiting for booth telemetry'}</strong>
+          <p>The software version currently reported by the booth runtime.</p>
+        </div>
+        <div className="card admin-stat-card">
+          <span className="admin-stat-label">Watcher</span>
+          <strong>{device.runtime?.watcherState ?? 'Not reported yet'}</strong>
+          <p>Whether the booth is actively watching its local capture folder.</p>
+        </div>
       </div>
 
       <div className="detail-grid">
@@ -220,6 +234,94 @@ export function AdminDeviceDetail() {
           <p className="subtle-note" style={{ marginTop: 16 }}>
             The private key is intentionally not retrievable after provisioning. Re-provision the device if the private
             key is lost.
+          </p>
+        </div>
+      </div>
+
+      <div className="detail-grid">
+        <div className="card">
+          <div className="section-header">
+            <div>
+              <h2 style={{ marginBottom: 4 }}>Live Booth Runtime</h2>
+              <p style={{ color: 'var(--text-muted)' }}>
+                These values come from the booth-side localhost dashboard and heartbeat telemetry, not just the admin
+                database view.
+              </p>
+            </div>
+          </div>
+
+          <div className="detail-list">
+            <div>
+              <span>Booth machine</span>
+              <strong>{formatRuntimeValue(device.runtime?.machineName ?? null)}</strong>
+            </div>
+            <div>
+              <span>Runtime framework</span>
+              <strong>{formatRuntimeValue(device.runtime?.runtimeVersion ?? null)}</strong>
+            </div>
+            <div>
+              <span>Local dashboard</span>
+              <strong>{formatRuntimeValue(device.runtime?.localDashboardUrl ?? null, 'Open the booth on-site and visit its localhost dashboard')}</strong>
+            </div>
+            <div>
+              <span>Watch directory</span>
+              <strong>{formatRuntimeValue(device.runtime?.watchDirectory ?? null)}</strong>
+            </div>
+            <div>
+              <span>Last config sync</span>
+              <strong>{formatDateTime(device.runtime?.lastConfigSyncAt ?? null)}</strong>
+            </div>
+            <div>
+              <span>Wedding loaded on booth</span>
+              <strong>{formatRuntimeValue(device.runtime?.loadedEventName ?? null, 'No wedding loaded yet')}</strong>
+            </div>
+            <div>
+              <span>Loaded at</span>
+              <strong>{formatDateTime(device.runtime?.lastEventLoadedAt ?? null)}</strong>
+            </div>
+            <div>
+              <span>Queued uploads</span>
+              <strong>{device.runtime?.pendingUploadCount ?? 0}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="section-header">
+            <div>
+              <h2 style={{ marginBottom: 4 }}>Latest Booth Activity</h2>
+              <p style={{ color: 'var(--text-muted)' }}>
+                Upload and heartbeat diagnostics pushed up by the running booth client.
+              </p>
+            </div>
+          </div>
+
+          <div className="detail-list">
+            <div>
+              <span>Last upload status</span>
+              <strong>{formatRuntimeValue(device.runtime?.lastUploadStatus ?? null, 'No upload reported yet')}</strong>
+            </div>
+            <div>
+              <span>Last upload file</span>
+              <strong>{formatRuntimeValue(device.runtime?.lastUploadFileName ?? null)}</strong>
+            </div>
+            <div>
+              <span>Last upload at</span>
+              <strong>{formatDateTime(device.runtime?.lastUploadAt ?? null)}</strong>
+            </div>
+            <div>
+              <span>Upload error</span>
+              <strong>{formatRuntimeValue(device.runtime?.lastUploadError ?? null, 'No upload error reported')}</strong>
+            </div>
+            <div>
+              <span>Heartbeat error</span>
+              <strong>{formatRuntimeValue(device.runtime?.lastHeartbeatError ?? null, 'No heartbeat error reported')}</strong>
+            </div>
+          </div>
+
+          <p className="subtle-note" style={{ marginTop: 16 }}>
+            Preferred setup flow: open the booth-side `dashboard` command on the device, register it locally there,
+            then return here to assign the wedding and monitor the live telemetry.
           </p>
         </div>
       </div>

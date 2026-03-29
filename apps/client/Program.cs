@@ -23,6 +23,7 @@ internal static class Program
             {
                 "register" => await RegisterAsync(args[1..], cts.Token),
                 "run" => await RunAsync(args[1..], cts.Token),
+                "dashboard" => await RunDashboardAsync(args[1..], cts.Token),
                 "upload-file" => await UploadFileAsync(args[1..], cts.Token),
                 _ => ExitWithUsage($"Unknown command '{args[0]}'.")
             };
@@ -54,6 +55,7 @@ internal static class Program
             configPath,
             watchDirectory,
             publicKeyPem,
+            null,
             ct);
 
         Console.WriteLine($"Device registered: {config.DeviceId}");
@@ -73,9 +75,23 @@ internal static class Program
 
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
         var apiClient = new PhotoboothApiClient(httpClient, config);
-        var runner = new PhotoboothDeviceRunner(apiClient, config);
+        var runnerState = new ClientRuntimeState(configPath);
+        var runner = new PhotoboothDeviceRunner(apiClient, config, runnerState);
 
         await runner.RunAsync(ct);
+        return 0;
+    }
+
+    private static async Task<int> RunDashboardAsync(string[] args, CancellationToken ct)
+    {
+        var configPath = GetOption(args, "--config") ?? "photobooth-device.json";
+        var host = GetOption(args, "--host") ?? "127.0.0.1";
+        var portRaw = GetOption(args, "--port");
+        var port = int.TryParse(portRaw, out var parsedPort) ? parsedPort : 5077;
+
+        var manager = new BoothRuntimeManager(configPath);
+        await using var dashboard = new LocalDashboardHost(manager, configPath, host, port);
+        await dashboard.RunAsync(ct);
         return 0;
     }
 
@@ -87,7 +103,8 @@ internal static class Program
 
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
         var apiClient = new PhotoboothApiClient(httpClient, config);
-        var runner = new PhotoboothDeviceRunner(apiClient, config);
+        var runnerState = new ClientRuntimeState(configPath);
+        var runner = new PhotoboothDeviceRunner(apiClient, config, runnerState);
 
         await runner.UploadSingleFileAsync(filePath, ct);
         return 0;
@@ -126,11 +143,13 @@ internal static class Program
             Commands:
               register --server-url <url> --device-name <name> [--config photobooth-device.json] [--watch-dir /path]
               run --config photobooth-device.json
+              dashboard [--config photobooth-device.json] [--host 127.0.0.1] [--port 5077]
               upload-file --config photobooth-device.json --file /path/to/capture.jpg
 
             Examples:
               dotnet run --project apps/client/Photobooth.Client.csproj -- register --server-url http://localhost:5000 --device-name "Booth 01" --config ./device.json --watch-dir /photos/out
               dotnet run --project apps/client/Photobooth.Client.csproj -- run --config ./device.json
+              dotnet run --project apps/client/Photobooth.Client.csproj -- dashboard --config ./device.json --port 5077
               dotnet run --project apps/client/Photobooth.Client.csproj -- upload-file --config ./device.json --file ./capture.jpg
             """);
     }

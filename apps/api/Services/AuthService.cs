@@ -33,6 +33,7 @@ public interface IAuthService
     // Refresh tokens
     Task<RefreshResult?> RotateRefreshTokenAsync(string rawRefreshToken, CancellationToken ct = default);
     Task RevokeRefreshTokenAsync(string rawRefreshToken, CancellationToken ct = default);
+    Task RevokeAllRefreshTokensAsync(Guid subjectId, string role, CancellationToken ct = default);
 
     // Marriage verification
     Task<string> CreateVerificationTokenAsync(MarriageEmail me, CancellationToken ct = default);
@@ -209,6 +210,22 @@ public class AuthService : IAuthService
             stored.RevokedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
         }
+    }
+
+    public async Task RevokeAllRefreshTokensAsync(Guid subjectId, string role, CancellationToken ct = default)
+    {
+        var activeTokens = await _db.RefreshTokens
+            .Where(r => r.SubjectId == subjectId && r.Role == role && r.RevokedAt == null && r.ExpiresAt > DateTime.UtcNow)
+            .ToListAsync(ct);
+
+        if (activeTokens.Count == 0)
+            return;
+
+        var revokedAt = DateTime.UtcNow;
+        foreach (var token in activeTokens)
+            token.RevokedAt = revokedAt;
+
+        await _db.SaveChangesAsync(ct);
     }
 
     // ---------- Marriage Email Verification ----------

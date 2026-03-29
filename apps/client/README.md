@@ -1,6 +1,6 @@
 # Photobooth Client
 
-The device client signs every request with the device private key, sends periodic heartbeats, fetches its assigned event, and uploads captured images to the central backend.
+The device client signs every request with the device private key, sends periodic heartbeats, fetches its assigned event, uploads captured images to the central backend, and now serves a booth-local dashboard on `localhost` for setup and live operations.
 
 ## Nx Targets
 
@@ -18,8 +18,17 @@ The canned Nx targets are meant for local development. They use `apps/client/pho
 ```bash
 dotnet run --project apps/client/Photobooth.Client.csproj -- register --server-url http://localhost:5000 --device-name "Booth 01" --config ./device.json --watch-dir /photos/out
 dotnet run --project apps/client/Photobooth.Client.csproj -- run --config ./device.json
+dotnet run --project apps/client/Photobooth.Client.csproj -- dashboard --config ./device.json --port 5077
 dotnet run --project apps/client/Photobooth.Client.csproj -- upload-file --config ./device.json --file /photos/out/capture.jpg
 ```
+
+`dashboard` is the preferred booth-side entry point for real hardware. It starts a localhost web server where the operator can:
+
+- generate an RSA key pair on the booth itself
+- register the device with the central server
+- import or download the device JSON
+- start or stop the booth runtime
+- watch the live wedding assignment, heartbeat, watcher state, and latest upload result
 
 For Photobooth Project post-processing, point the hook to:
 

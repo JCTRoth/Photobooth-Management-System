@@ -7,20 +7,25 @@ public sealed class PhotoboothDeviceRunner
 {
     private readonly PhotoboothApiClient _apiClient;
     private readonly PhotoboothClientConfig _config;
+    private readonly ClientRuntimeState _state;
     private readonly ConcurrentDictionary<string, byte> _scheduledFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Channel<string> _uploadQueue = Channel.CreateUnbounded<string>();
 
     private volatile string _status = "idle";
     private volatile DeviceConfigResponse? _runtimeConfig;
 
-    public PhotoboothDeviceRunner(PhotoboothApiClient apiClient, PhotoboothClientConfig config)
+    public PhotoboothDeviceRunner(PhotoboothApiClient apiClient, PhotoboothClientConfig config, ClientRuntimeState state)
     {
         _apiClient = apiClient;
         _config = config;
+        _state = state;
     }
 
     public async Task RunAsync(CancellationToken ct)
     {
+        _state.SetConfig(_config);
+        _state.SetRunnerLifecycle("running");
+        _state.SetDeviceStatus(_status);
         _runtimeConfig = await RefreshRuntimeConfigAsync(ct);
 
         Console.WriteLine($"Device {_config.DeviceId} connected to {_config.ServerUrl}");
@@ -38,10 +43,12 @@ public sealed class PhotoboothDeviceRunner
             watcher = CreateWatcher(_config.WatchDirectory);
             watcher.EnableRaisingEvents = true;
             Console.WriteLine($"Watching {_config.WatchDirectory} for new captures...");
+            _state.SetWatcherState("watching");
         }
         else
         {
             Console.WriteLine("No watch directory configured. The client will only send heartbeats until a manual upload command is used.");
+            _state.SetWatcherState("not-configured");
         }
 
         try
@@ -51,6 +58,9 @@ public sealed class PhotoboothDeviceRunner
         finally
         {
             watcher?.Dispose();
+            _state.SetRunnerLifecycle("stopped");
+            _state.SetDeviceStatus("idle");
+            _state.SetWatcherState(string.IsNullOrWhiteSpace(_config.WatchDirectory) ? "not-configured" : "stopped");
         }
     }
 
@@ -67,19 +77,25 @@ public sealed class PhotoboothDeviceRunner
         await WaitForStableFileAsync(filePath, ct);
 
         _status = "active";
+        _state.SetDeviceStatus(_status);
+        _state.RecordUploadStarted(Path.GetFileName(filePath));
         try
         {
             var response = await _apiClient.UploadPhotoAsync(filePath, assignedEventId, ct);
             Console.WriteLine($"Uploaded {Path.GetFileName(filePath)} -> {response.DownloadUrl}");
+            _state.RecordUploadSuccess(Path.GetFileName(filePath));
         }
-        catch
+        catch (Exception ex)
         {
             _status = "error";
+            _state.SetDeviceStatus(_status);
+            _state.RecordUploadFailure(Path.GetFileName(filePath), ex.Message);
             throw;
         }
         finally
         {
             _status = "idle";
+            _state.SetDeviceStatus(_status);
         }
     }
 
@@ -97,8 +113,9 @@ public sealed class PhotoboothDeviceRunner
                 }
 
                 var currentEventId = _runtimeConfig?.AssignedEvent?.EventId;
-                await _apiClient.SendHeartbeatAsync(_status, currentEventId, ct);
+                await _apiClient.SendHeartbeatAsync(_status, currentEventId, _state.CreateHeartbeatTelemetry(), ct);
                 heartbeatCount++;
+                _state.RecordHeartbeatSuccess();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -107,6 +124,8 @@ public sealed class PhotoboothDeviceRunner
             catch (Exception ex)
             {
                 _status = "error";
+                _state.SetDeviceStatus(_status);
+                _state.RecordHeartbeatFailure(ex.Message);
                 Console.Error.WriteLine($"Heartbeat failed: {ex.Message}");
             }
 
@@ -116,6 +135,7 @@ public sealed class PhotoboothDeviceRunner
             if (_status == "error")
             {
                 _status = "idle";
+                _state.SetDeviceStatus(_status);
             }
         }
     }
@@ -139,6 +159,7 @@ public sealed class PhotoboothDeviceRunner
             finally
             {
                 _scheduledFiles.TryRemove(filePath, out _);
+                _state.SetPendingUploadCount(_scheduledFiles.Count);
             }
         }
     }
@@ -162,12 +183,18 @@ public sealed class PhotoboothDeviceRunner
             }
 
             _uploadQueue.Writer.TryWrite(fullPath);
+            _state.SetPendingUploadCount(_scheduledFiles.Count);
         }
 
         watcher.Created += (_, args) => QueueIfSupported(args.FullPath);
         watcher.Changed += (_, args) => QueueIfSupported(args.FullPath);
         watcher.Renamed += (_, args) => QueueIfSupported(args.FullPath);
-        watcher.Error += (_, args) => Console.Error.WriteLine($"Watcher error: {args.GetException().Message}");
+        watcher.Error += (_, args) =>
+        {
+            var message = args.GetException().Message;
+            _state.SetWatcherState("error", message);
+            Console.Error.WriteLine($"Watcher error: {message}");
+        };
 
         return watcher;
     }
@@ -180,6 +207,7 @@ public sealed class PhotoboothDeviceRunner
             Console.WriteLine($"Config synced. Current event: {latest.AssignedEvent.EventName}");
         }
 
+        _state.RecordConfigSync(latest);
         return latest;
     }
 

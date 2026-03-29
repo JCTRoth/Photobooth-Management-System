@@ -174,6 +174,10 @@ export function AdminDevicesDashboard() {
           <p style={{ color: 'var(--text-muted)', marginTop: 6 }}>
             Provision booths, monitor heartbeats, and keep each wedding assigned to the right hardware.
           </p>
+          <p className="subtle-note" style={{ marginTop: 10 }}>
+            Best practice: start the booth-side localhost dashboard on the device, generate the key there, let the
+            booth register itself, and then assign the wedding here in the admin portal.
+          </p>
         </div>
         <button className="btn-primary" onClick={() => setShowProvisionModal(true)}>
           + Provision Device

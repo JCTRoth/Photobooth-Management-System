@@ -110,7 +110,8 @@ export function AdminSmtpSettings() {
         </label>
         <label>
           Username
-          <input value={form.username} onChange={(e) => setForm((x) => ({ ...x, username: e.target.value }))} required />
+          <input value={form.username} onChange={(e) => setForm((x) => ({ ...x, username: e.target.value }))} />
+          <span className="form-helper-text">Leave blank for local or relay servers that do not require SMTP auth.</span>
         </label>
         <label>
           Password
@@ -118,8 +119,8 @@ export function AdminSmtpSettings() {
             type="password"
             value={form.password}
             onChange={(e) => setForm((x) => ({ ...x, password: e.target.value }))}
-            required
           />
+          <span className="form-helper-text">Leave blank together with username when the SMTP server accepts anonymous connections.</span>
         </label>
         <label>
           From e-mail

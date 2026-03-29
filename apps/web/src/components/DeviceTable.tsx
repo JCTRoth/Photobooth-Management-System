@@ -25,6 +25,20 @@ function formatLastSeen(lastSeenAt: string | null) {
   return seenAt.toLocaleString();
 }
 
+function buildDeviceSubtitle(device: DeviceSummary) {
+  const parts = [new Date(device.createdAt).toLocaleDateString()];
+
+  if (device.runtime?.clientVersion) {
+    parts.push(`Client ${device.runtime.clientVersion}`);
+  }
+
+  if (device.runtime?.loadedEventName) {
+    parts.push(`Loaded ${device.runtime.loadedEventName}`);
+  }
+
+  return parts.join(' · ');
+}
+
 export function DeviceTable({
   devices,
   events,
@@ -95,7 +109,7 @@ function DeviceRow({
       <td>
         <div className="table-primary">
           <Link to={`/admin/devices/${device.id}`}>{device.name}</Link>
-          <span>{new Date(device.createdAt).toLocaleDateString()}</span>
+          <span>{buildDeviceSubtitle(device)}</span>
         </div>
       </td>
       <td>

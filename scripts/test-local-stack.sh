@@ -115,7 +115,7 @@ http_ok() {
   local url="$1"
   local status
 
-  status="$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)"
+  status="$(curl -sS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || true)"
   [[ "$status" == 2* || "$status" == 3* ]]
 }
 

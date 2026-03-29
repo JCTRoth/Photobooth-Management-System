@@ -21,6 +21,10 @@ export interface AdminVerifyResponse {
   mustChangePassword: boolean;
 }
 
+export interface AdminPasswordResetResponse {
+  message: string;
+}
+
 export interface RefreshResponse {
   accessToken: string;
   mustChangePassword?: boolean;

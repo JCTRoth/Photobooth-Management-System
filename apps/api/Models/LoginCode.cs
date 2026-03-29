@@ -6,7 +6,8 @@ namespace Photobooth.Api.Models;
 public enum LoginCodePurpose
 {
     MarriageLogin,
-    AdminTwoFactor
+    AdminTwoFactor,
+    AdminPasswordReset
 }
 
 [Table("login_codes")]

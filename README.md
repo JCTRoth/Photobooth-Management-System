@@ -115,12 +115,21 @@ The first login forces a password change.
 ```bash
 npx nx run client:register
 npx nx run client:run
+npx nx run client:build
 npx nx run client:upload-file
 ```
 
 You can also use the admin panel at `/admin/devices` to provision a device package and download the JSON config.
 The Nx targets use a local dev config at `apps/client/photobooth-device.local.json` and will auto-bootstrap it when needed.
 For custom parameters, use the raw `dotnet run --project apps/client/Photobooth.Client.csproj -- ...` commands from [apps/client/README.md](./apps/client/README.md).
+
+For real booth setup, prefer the booth-local dashboard:
+
+```bash
+dotnet run --project apps/client/Photobooth.Client.csproj -- dashboard --config ./device.json --port 5077
+```
+
+That starts a localhost control page on the booth machine where the operator can generate the key locally, register the device, save or import the JSON config, start the runtime, and inspect live status. The central admin UI remains the server-side control plane for assignments and fleet monitoring.
 
 ## Device Workflow
 
@@ -208,6 +217,7 @@ The backend verifies the RSA-PSS signature with the stored public key and reject
 
 - Configure SMTP from the admin UI
 - Test delivery and unlock admin OTP verification
+- Enable admin password reset emails and the `/admin/reset-password` recovery flow
 
 ## Photobooth Project Integration
 
