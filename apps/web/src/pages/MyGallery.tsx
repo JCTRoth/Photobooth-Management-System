@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { getEventImages, deleteImage, updateImageCaption, getImageFileUrl } from '@/services/api';
 import type { ImageResponse } from '@/types/api';
 import { logout } from '@/services/api';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { changeAdminPassword } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { evaluatePasswordStrength, getRuleState, type RuleState } from '@/utils/adminPassword';
 
 export function AdminChangePassword() {

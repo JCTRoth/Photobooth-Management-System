@@ -16,75 +16,91 @@ import { AdminResetPassword } from '@/pages/AdminResetPassword';
 import { BoothConsolePage } from '@/pages/BoothConsolePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { RequireAuth } from '@/components/RequireAuth';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { configureAuth, logout } from '@/services/api';
 import '@/index.css';
 
 function ApiConfigurer() {
   const { accessToken, refreshAccessToken } = useAuth();
+  
   useEffect(() => {
     configureAuth(() => accessToken, refreshAccessToken);
+    
+    // Set up periodic token refresh (every 14 minutes for 15m token lifetime)
+    if (accessToken) {
+      const interval = setInterval(() => {
+        refreshAccessToken();
+      }, 14 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
   }, [accessToken, refreshAccessToken]);
+  
   return null;
+}
+
+function AppRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Admin login */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+        <Route
+          path="/admin/change-password"
+          element={
+            <RequireAuth role="Admin">
+              <AdminChangePassword />
+            </RequireAuth>
+          }
+        />
+
+        {/* Marriage user login */}
+        <Route path="/login" element={<MarriageLogin />} />
+
+        {/* Admin protected routes */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth role="Admin">
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="events/:eventId" element={<EventDetail />} />
+          <Route path="devices" element={<AdminDevicesDashboard />} />
+          <Route path="devices/:deviceId" element={<AdminDeviceDetail />} />
+          <Route path="settings/smtp" element={<AdminSmtpSettings />} />
+        </Route>
+
+        {/* Marriage user protected routes */}
+        <Route
+          path="/my-gallery"
+          element={
+            <RequireAuth role="MarriageUser">
+              <MyGallery />
+            </RequireAuth>
+          }
+        />
+
+        {/* Public routes - no auth */}
+        <Route path="/booth" element={<BoothConsolePage />} />
+        <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
+        <Route path="/download/:imageId" element={<DownloadPage />} />
+        <Route path="/slideshow/:eventId" element={<SlideshowPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export function App() {
   return (
-    <AuthProvider>
+    <>
       <ApiConfigurer />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-
-          {/* Admin login */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/reset-password" element={<AdminResetPassword />} />
-          <Route
-            path="/admin/change-password"
-            element={
-              <RequireAuth role="Admin">
-                <AdminChangePassword />
-              </RequireAuth>
-            }
-          />
-
-          {/* Marriage user login */}
-          <Route path="/login" element={<MarriageLogin />} />
-
-          {/* Admin protected routes */}
-          <Route
-            path="/admin"
-            element={
-              <RequireAuth role="Admin">
-                <AdminLayout />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<AdminDashboard />} />
-            <Route path="events/:eventId" element={<EventDetail />} />
-            <Route path="devices" element={<AdminDevicesDashboard />} />
-            <Route path="devices/:deviceId" element={<AdminDeviceDetail />} />
-            <Route path="settings/smtp" element={<AdminSmtpSettings />} />
-          </Route>
-
-          {/* Marriage user protected routes */}
-          <Route
-            path="/my-gallery"
-            element={
-              <RequireAuth role="MarriageUser">
-                <MyGallery />
-              </RequireAuth>
-            }
-          />
-
-          {/* Public routes - no auth */}
-          <Route path="/booth" element={<BoothConsolePage />} />
-          <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
-          <Route path="/download/:imageId" element={<DownloadPage />} />
-          <Route path="/slideshow/:eventId" element={<SlideshowPage />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      <AppRoutes />
+    </>
   );
 }
 
