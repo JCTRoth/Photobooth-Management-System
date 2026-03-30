@@ -85,12 +85,12 @@ npm run api:db-update
 ### 3. Start the API with hot reload
 
 ```bash
-npm run api:watch
+npx nx run api:dev
 ```
 
 The API listens on `http://localhost:5000`.
 
-### 4. Start the frontend
+### 4. Start the frontend with hot reload
 
 ```bash
 npm --prefix apps/web install
@@ -98,6 +98,11 @@ npx nx run web:dev
 ```
 
 The frontend runs on `http://localhost:5173` and proxies `/api` to the API.
+If you prefer one command for both hot-reloading servers, use:
+
+```bash
+npm run dev
+```
 
 ### 5. Bootstrap admin access
 
@@ -113,6 +118,7 @@ The first login forces a password change.
 ### 6. Provision and run a photobooth client
 
 ```bash
+npx nx run client:dev
 npx nx run client:register
 npx nx run client:run
 npx nx run client:build
@@ -121,6 +127,8 @@ npx nx run client:upload-file
 
 You can also use the admin panel at `/admin/devices` to provision a device package and download the JSON config.
 The Nx targets use a local dev config at `apps/client/photobooth-device.local.json` and will auto-bootstrap it when needed.
+`client:dev` uses `dotnet watch`, so edits to the .NET client reload automatically during local development.
+If the API is not running yet, the helper scripts now stop early with a clear message instead of failing with a bare connection-refused error.
 For custom parameters, use the raw `dotnet run --project apps/client/Photobooth.Client.csproj -- ...` commands from [apps/client/README.md](./apps/client/README.md).
 
 For real booth setup, prefer the booth-local dashboard:

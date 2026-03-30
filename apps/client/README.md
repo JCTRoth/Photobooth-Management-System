@@ -6,12 +6,13 @@ The device client signs every request with the device private key, sends periodi
 
 ```bash
 npx nx run client:build
+npx nx run client:dev
 npx nx run client:run
 npx nx run client:register
 npx nx run client:upload-file
 ```
 
-The canned Nx targets are meant for local development. They use `apps/client/photobooth-device.local.json` and will auto-bootstrap it when helpful. For real booth provisioning, prefer the explicit commands below so you can set the correct server URL, config path, and watch directory.
+The canned Nx targets are meant for local development. They use `apps/client/photobooth-device.local.json` and will auto-bootstrap it when helpful. `client:dev` runs the client through `dotnet watch` for hot reload, while `client:run` starts it without the watcher. For real booth provisioning, prefer the explicit commands below so you can set the correct server URL, config path, and watch directory.
 
 ## Commands
 

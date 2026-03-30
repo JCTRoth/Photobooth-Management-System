@@ -8,6 +8,9 @@
     "build": {
       "command": "dotnet build apps/client/Photobooth.Client.csproj -c Release"
     },
+    "dev": {
+      "command": "bash ./scripts/client-dev-run.sh --watch"
+    },
     "run": {
       "command": "bash ./scripts/client-dev-run.sh"
     },

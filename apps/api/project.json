@@ -12,6 +12,12 @@
       "command": "dotnet build apps/api/Photobooth.Api.csproj -c Release",
       "dependsOn": ["restore"]
     },
+    "dev": {
+      "command": "dotnet watch run --project apps/api/Photobooth.Api.csproj"
+    },
+    "run": {
+      "command": "dotnet run --project apps/api/Photobooth.Api.csproj"
+    },
     "serve": {
       "command": "dotnet run --project apps/api/Photobooth.Api.csproj"
     },

@@ -50,7 +50,7 @@ npm run api:db-update
 ### 4. Start the backend
 
 ```bash
-npx nx run api:watch
+npx nx run api:dev
 ```
 
 The API listens on `http://localhost:5000`.
@@ -62,10 +62,18 @@ npx nx run web:dev
 ```
 
 The Vite app listens on `http://localhost:5173`.
+It hot-reloads automatically in the browser.
+
+If you want both API and frontend hot reload together:
+
+```bash
+npm run dev
+```
 
 ### 6. Optional: run the device client
 
 ```bash
+npx nx run client:dev
 npx nx run client:register
 npx nx run client:run
 npx nx run client:upload-file
@@ -75,6 +83,7 @@ The Nx client targets now use a local config at `apps/client/photobooth-device.l
 
 - `client:register` is idempotent for local development and reuses the config if it already exists.
 - `client:run` auto-registers a local device if no config exists yet.
+- `client:dev` runs the same flow through `dotnet watch` for client-side hot reload.
 - `client:upload-file` uses the newest jpg/png from `/tmp/photobooth` by default, or `PHOTOBOOTH_CLIENT_FILE`.
 
 For real setups, pass your own server URL, config path, and watch directory with the raw `dotnet run` command.
@@ -86,7 +95,7 @@ For real setups, pass your own server URL, config path, and watch directory with
 Use hot reload:
 
 ```bash
-npx nx run api:watch
+npx nx run api:dev
 ```
 
 Useful commands:
@@ -105,6 +114,8 @@ Use Vite in dev mode:
 npx nx run web:dev
 ```
 
+Vite HMR is already enabled, so saving a React/TypeScript file refreshes the browser immediately.
+
 Production build:
 
 ```bash
@@ -117,6 +128,12 @@ Build:
 
 ```bash
 npx nx run client:build
+```
+
+Hot reload:
+
+```bash
+npx nx run client:dev
 ```
 
 Run with a real config:
@@ -144,6 +161,16 @@ PHOTOBOOTH_CLIENT_SERVER_URL=http://localhost:5000 npx nx run client:register
 PHOTOBOOTH_CLIENT_DEVICE_NAME="Studio Booth" npx nx run client:register
 PHOTOBOOTH_CLIENT_WATCH_DIR=/tmp/photobooth npx nx run client:run
 PHOTOBOOTH_CLIENT_FILE=/path/to/capture.jpg npx nx run client:upload-file
+```
+
+Target naming is now aligned around shared `:build`, `:dev`, and `:run` aliases:
+
+```bash
+npx nx run api:dev
+npx nx run web:dev
+npx nx run web:run
+npx nx run client:dev
+npx nx run client:run
 ```
 
 ## Authentication Notes
@@ -235,6 +262,7 @@ For device/auth changes, also verify:
 ## Common Gotchas
 
 - `localhost` only works for a booth running on the same machine as the API.
+- If `client:register` or `client:run` says the API is unreachable, start `npx nx run api:dev` first.
 - The device JSON private key is only returned once when the backend generates it.
 - Vite proxy issues usually mean the frontend dev server needs a restart after config changes.
 - If `dotnet watch` reports a rude edit, restart it once and continue.

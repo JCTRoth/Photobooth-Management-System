@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-CONFIG_PATH="${PHOTOBOOTH_CLIENT_CONFIG:-$ROOT_DIR/apps/client/photobooth-device.local.json}"
-SERVER_URL="${PHOTOBOOTH_CLIENT_SERVER_URL:-http://localhost:5000}"
-WATCH_DIR="${PHOTOBOOTH_CLIENT_WATCH_DIR:-/tmp/photobooth}"
-BASE_NAME="${PHOTOBOOTH_CLIENT_DEVICE_NAME:-$(hostname -s 2>/dev/null || echo dev)-booth}"
+. "$(
+  cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
+)/client-dev-common.sh"
 
 mkdir -p "$(dirname "$CONFIG_PATH")" "$WATCH_DIR"
 
@@ -15,6 +11,8 @@ if [ -f "$CONFIG_PATH" ]; then
   echo "Using existing local device config: $CONFIG_PATH"
   exit 0
 fi
+
+ensure_api_reachable "register a local dev device"
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 
