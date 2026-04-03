@@ -49,7 +49,6 @@ export function LandingPage() {
 
       <div className="landing-admin-entry">
         <Link to="/admin/login">Admin login</Link>
-        <Link to="/booth">Booth setup guide</Link>
       </div>
     </main>
   );

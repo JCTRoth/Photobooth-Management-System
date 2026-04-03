@@ -13,7 +13,6 @@ import { AdminSmtpSettings } from '@/pages/AdminSmtpSettings';
 import { AdminDevicesDashboard } from '@/pages/AdminDevicesDashboard';
 import { AdminDeviceDetail } from '@/pages/AdminDeviceDetail';
 import { AdminResetPassword } from '@/pages/AdminResetPassword';
-import { BoothConsolePage } from '@/pages/BoothConsolePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { RequireAuth } from '@/components/RequireAuth';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,7 +85,6 @@ function AppRoutes() {
         />
 
         {/* Public routes - no auth */}
-        <Route path="/booth" element={<BoothConsolePage />} />
         <Route path="/event/:eventId/upload" element={<CoupleUpload />} />
         <Route path="/download/:imageId" element={<DownloadPage />} />
         <Route path="/slideshow/:eventId" element={<SlideshowPage />} />
