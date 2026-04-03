@@ -62,6 +62,7 @@ public class EventService : IEventService
         entity.Date = request.Date;
         var eventDate = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         entity.ExpiresAt = eventDate.AddDays(request.RetentionDays);
+        entity.RetentionWarningSentAt = null;
         entity.SlideshowAlbumsJson = SerializeAlbums(NormalizeAlbums(request.SlideshowAlbums));
 
         await _eventRepo.UpdateAsync(entity, ct);

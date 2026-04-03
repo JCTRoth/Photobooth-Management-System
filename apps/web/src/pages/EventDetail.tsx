@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getDevices, getEvent, getEventImages, getImageFileUrl } from '@/services/api';
+import { downloadEventZip, getDevices, getEvent, getEventImages, getImageFileUrl } from '@/services/api';
 import type { EventResponse, ImageResponse } from '@/types/api';
 import type { DeviceSummary } from '@/types/device';
 import { MarriageInvitePanel } from '@/components/MarriageInvitePanel';
@@ -12,6 +12,7 @@ export function EventDetail() {
   const [assignedDevices, setAssignedDevices] = useState<DeviceSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!eventId) return;
@@ -65,6 +66,19 @@ export function EventDetail() {
     }
   };
 
+  const handleDownloadEventZip = async () => {
+    if (!event) return;
+
+    try {
+      setDownloadingZip(true);
+      await downloadEventZip(event.id, event.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download event ZIP');
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   return (
     <>
       <div className="page-header">
@@ -74,9 +88,14 @@ export function EventDetail() {
           </Link>
           <h1 style={{ marginTop: 4 }}>{event.name}</h1>
         </div>
-        <span className={isExpired ? 'status-expired' : 'status-active'}>
-          {isExpired ? 'Expired' : 'Active'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="btn-secondary" onClick={handleDownloadEventZip} disabled={downloadingZip}>
+            {downloadingZip ? 'Preparing ZIP...' : 'Download Event ZIP'}
+          </button>
+          <span className={isExpired ? 'status-expired' : 'status-active'}>
+            {isExpired ? 'Expired' : 'Active'}
+          </span>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>

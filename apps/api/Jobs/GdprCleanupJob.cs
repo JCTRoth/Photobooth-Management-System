@@ -1,4 +1,3 @@
-using Photobooth.Api.Repositories;
 using Photobooth.Api.Services;
 
 namespace Photobooth.Api.Jobs;
@@ -37,49 +36,14 @@ public sealed class GdprCleanupJob : BackgroundService
     private async Task CleanupExpiredEventsAsync(CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
-        var eventRepo = scope.ServiceProvider.GetRequiredService<IEventRepository>();
-        var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-        var nonceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRequestNonceRepository>();
-        var sftpStorage = scope.ServiceProvider.GetRequiredService<ISftpStorageService>();
+        var retentionMaintenance = scope.ServiceProvider.GetRequiredService<IRetentionMaintenanceService>();
+        var result = await retentionMaintenance.RunAsync(ct);
 
-        var expiredEvents = await eventRepo.GetExpiredAsync(ct);
-
-        if (expiredEvents.Count == 0)
-        {
-            _logger.LogDebug("No expired events found");
-            return;
-        }
-
-        _logger.LogInformation("Found {Count} expired events to clean up", expiredEvents.Count);
-
-        foreach (var ev in expiredEvents)
-        {
-            try
-            {
-                _logger.LogInformation("Deleting expired event: {EventId} ({EventName}), expired at {ExpiresAt}",
-                    ev.Id, ev.Name, ev.ExpiresAt);
-
-                await sftpStorage.DeleteEventDirectoryAsync(ev.Id, ct);
-                await eventRepo.DeleteAsync(ev, ct);
-
-                _logger.LogInformation("Successfully deleted event {EventId}", ev.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete expired event {EventId}", ev.Id);
-            }
-        }
-
-        var offlineCount = await deviceRepo.MarkOfflineAsync(DateTime.UtcNow.AddMinutes(-2), ct);
-        if (offlineCount > 0)
-        {
-            _logger.LogInformation("Marked {Count} stale devices as offline", offlineCount);
-        }
-
-        var deletedNonces = await nonceRepo.DeleteExpiredAsync(DateTime.UtcNow, ct);
-        if (deletedNonces > 0)
-        {
-            _logger.LogInformation("Deleted {Count} expired device request nonces", deletedNonces);
-        }
+        _logger.LogInformation(
+            "Retention maintenance completed: warningEmails={WarningEmails}, eventsArchivedAndDeleted={ArchivedDeleted}, devicesMarkedOffline={OfflineCount}, deletedNonces={NonceCount}",
+            result.WarningEmailsSent,
+            result.EventsArchivedAndDeleted,
+            result.DevicesMarkedOffline,
+            result.DeletedNonces);
     }
 }

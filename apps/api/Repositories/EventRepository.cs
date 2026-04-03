@@ -10,6 +10,7 @@ public interface IEventRepository
     Task<Event?> GetByUploadTokenAsync(string token, CancellationToken ct = default);
     Task<IReadOnlyList<Event>> GetAllAsync(CancellationToken ct = default);
     Task<IReadOnlyList<Event>> GetExpiredAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Event>> GetPendingRetentionWarningsAsync(DateTime nowUtc, DateTime warningThresholdUtc, CancellationToken ct = default);
     Task<Event> CreateAsync(Event entity, CancellationToken ct = default);
     Task UpdateAsync(Event entity, CancellationToken ct = default);
     Task DeleteAsync(Event entity, CancellationToken ct = default);
@@ -22,17 +23,39 @@ public class EventRepository : IEventRepository
     public EventRepository(PhotoboothDbContext db) => _db = db;
 
     public async Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        await _db.Events.Include(e => e.Images).FirstOrDefaultAsync(e => e.Id == id, ct);
+        await _db.Events
+            .Include(e => e.Images)
+            .Include(e => e.MarriageEmails)
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public async Task<Event?> GetByUploadTokenAsync(string token, CancellationToken ct = default) =>
         await _db.Events.FirstOrDefaultAsync(e => e.UploadToken == token, ct);
 
     public async Task<IReadOnlyList<Event>> GetAllAsync(CancellationToken ct = default) =>
-        await _db.Events.Include(e => e.Images).OrderByDescending(e => e.Date).ToListAsync(ct);
+        await _db.Events
+            .Include(e => e.Images)
+            .Include(e => e.MarriageEmails)
+            .OrderByDescending(e => e.Date)
+            .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Event>> GetExpiredAsync(CancellationToken ct = default) =>
-        await _db.Events.Include(e => e.Images)
+        await _db.Events
+            .Include(e => e.Images)
+            .Include(e => e.MarriageEmails)
             .Where(e => e.ExpiresAt <= DateTime.UtcNow)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Event>> GetPendingRetentionWarningsAsync(
+        DateTime nowUtc,
+        DateTime warningThresholdUtc,
+        CancellationToken ct = default) =>
+        await _db.Events
+            .Include(e => e.MarriageEmails)
+            .Where(e =>
+                e.RetentionWarningSentAt == null
+                && e.ExpiresAt > nowUtc
+                && e.ExpiresAt <= warningThresholdUtc)
+            .OrderBy(e => e.ExpiresAt)
             .ToListAsync(ct);
 
     public async Task<Event> CreateAsync(Event entity, CancellationToken ct = default)

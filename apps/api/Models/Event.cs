@@ -26,6 +26,9 @@ public class Event
     [Column("expires_at")]
     public DateTime ExpiresAt { get; set; }
 
+    [Column("retention_warning_sent_at")]
+    public DateTime? RetentionWarningSentAt { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

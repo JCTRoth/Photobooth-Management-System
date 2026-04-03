@@ -16,6 +16,8 @@ var builder = WebApplication.CreateBuilder(args);
 if (args.Contains("--cleanup-only"))
 {
     builder.Services.Configure<SftpSettings>(builder.Configuration.GetSection(SftpSettings.SectionName));
+    builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
+    builder.Services.Configure<RetentionSettings>(builder.Configuration.GetSection(RetentionSettings.SectionName));
     builder.Services.AddDbContext<PhotoboothDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
     builder.Services.AddScoped<IEventRepository, EventRepository>();
@@ -23,40 +25,22 @@ if (args.Contains("--cleanup-only"))
     builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
     builder.Services.AddScoped<IDeviceRequestNonceRepository, DeviceRequestNonceRepository>();
     builder.Services.AddSingleton<ISftpStorageService, SftpStorageService>();
+    builder.Services.AddScoped<IEmailService, EmailService>();
+    builder.Services.AddScoped<IEventArchiveService, EventArchiveService>();
+    builder.Services.AddScoped<IRetentionMaintenanceService, RetentionMaintenanceService>();
 
     await using var cleanupApp = builder.Build();
     using var scope = cleanupApp.Services.CreateScope();
-    var eventRepo = scope.ServiceProvider.GetRequiredService<IEventRepository>();
-    var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-    var nonceRepo = scope.ServiceProvider.GetRequiredService<IDeviceRequestNonceRepository>();
-    var sftpStorage = scope.ServiceProvider.GetRequiredService<ISftpStorageService>();
+    var retentionMaintenance = scope.ServiceProvider.GetRequiredService<IRetentionMaintenanceService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    var expiredEvents = await eventRepo.GetExpiredAsync();
-    logger.LogInformation("GDPR Cleanup: Found {Count} expired events", expiredEvents.Count);
-
-    foreach (var ev in expiredEvents)
-    {
-        try
-        {
-            logger.LogInformation("Deleting expired event: {EventId} ({EventName})", ev.Id, ev.Name);
-            await sftpStorage.DeleteEventDirectoryAsync(ev.Id);
-            await eventRepo.DeleteAsync(ev);
-            logger.LogInformation("Deleted event {EventId}", ev.Id);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to delete event {EventId}", ev.Id);
-        }
-    }
-
-    var offlineCount = await deviceRepo.MarkOfflineAsync(DateTime.UtcNow.AddMinutes(-2));
-    logger.LogInformation("Device offline reconciliation: marked {Count} devices offline", offlineCount);
-
-    var deletedNonces = await nonceRepo.DeleteExpiredAsync(DateTime.UtcNow);
-    logger.LogInformation("Device nonce cleanup: deleted {Count} expired nonces", deletedNonces);
-
-    logger.LogInformation("GDPR Cleanup complete");
+    var result = await retentionMaintenance.RunAsync();
+    logger.LogInformation(
+        "GDPR cleanup complete. warningEmails={WarningEmails}, eventsArchivedAndDeleted={ArchivedDeleted}, devicesMarkedOffline={OfflineCount}, deletedNonces={NonceCount}",
+        result.WarningEmailsSent,
+        result.EventsArchivedAndDeleted,
+        result.DevicesMarkedOffline,
+        result.DeletedNonces);
     return;
 }
 
@@ -65,6 +49,7 @@ builder.Services.Configure<SftpSettings>(builder.Configuration.GetSection(SftpSe
 builder.Services.Configure<UploadSettings>(builder.Configuration.GetSection(UploadSettings.SectionName));
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(SmtpSettings.SectionName));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+builder.Services.Configure<RetentionSettings>(builder.Configuration.GetSection(RetentionSettings.SectionName));
 
 // --- Database ---
 builder.Services.AddDbContext<PhotoboothDbContext>(options =>
@@ -95,6 +80,8 @@ builder.Services.AddScoped<IZipService, ZipService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmtpConfigurationService, SmtpConfigurationService>();
+builder.Services.AddScoped<IEventArchiveService, EventArchiveService>();
+builder.Services.AddScoped<IRetentionMaintenanceService, RetentionMaintenanceService>();
 
 // --- JWT Authentication ---
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()!;

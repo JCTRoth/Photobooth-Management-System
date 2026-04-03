@@ -7,6 +7,7 @@ namespace Photobooth.Api.Services;
 public interface IZipService
 {
     Task WriteZipToStreamAsync(Guid imageId, Stream outputStream, CancellationToken ct = default);
+    Task WriteEventZipToStreamAsync(Guid eventId, Stream outputStream, CancellationToken ct = default);
 }
 
 public class ZipService : IZipService
@@ -34,22 +35,56 @@ public class ZipService : IZipService
         using var archive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true);
 
         // Add the requested guest image
-        await AddImageToArchive(archive, image, "guest", ct);
+        await AddImageToArchive(archive, image, $"guest/0001_{image.Filename}", ct);
 
         // Add all couple images
         var index = 1;
         foreach (var coupleImage in coupleImages)
         {
-            await AddImageToArchive(archive, coupleImage, $"couple/{index:D3}", ct);
+            await AddImageToArchive(archive, coupleImage, $"couple/{index:D4}_{coupleImage.Filename}", ct);
             index++;
         }
     }
 
-    private async Task AddImageToArchive(ZipArchive archive, Image image, string prefix, CancellationToken ct)
+    public async Task WriteEventZipToStreamAsync(Guid eventId, Stream outputStream, CancellationToken ct = default)
+    {
+        var eventImages = await _imageRepo.GetByEventIdAsync(eventId, ct);
+
+        using var archive = new ZipArchive(outputStream, ZipArchiveMode.Create, leaveOpen: true);
+
+        if (eventImages.Count == 0)
+        {
+            var emptyEntry = archive.CreateEntry("README.txt", CompressionLevel.Fastest);
+            await using var writer = new StreamWriter(emptyEntry.Open());
+            await writer.WriteAsync("This event currently has no photos.");
+            return;
+        }
+
+        var orderedImages = eventImages
+            .OrderBy(image => image.CreatedAt)
+            .ThenBy(image => image.Filename, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var guestIndex = 1;
+        var coupleIndex = 1;
+
+        foreach (var image in orderedImages)
+        {
+            if (image.Type == ImageType.Guest)
+            {
+                await AddImageToArchive(archive, image, $"guests/{guestIndex:D4}_{image.Filename}", ct);
+                guestIndex++;
+                continue;
+            }
+
+            await AddImageToArchive(archive, image, $"couple/{coupleIndex:D4}_{image.Filename}", ct);
+            coupleIndex++;
+        }
+    }
+
+    private async Task AddImageToArchive(ZipArchive archive, Image image, string entryName, CancellationToken ct)
     {
         var subfolder = image.Type == ImageType.Guest ? "guests" : "couple";
-        var extension = Path.GetExtension(image.Filename);
-        var entryName = $"{prefix}_{image.Filename}";
 
         var entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
         await using var entryStream = entry.Open();

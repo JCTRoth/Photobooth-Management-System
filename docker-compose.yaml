@@ -16,6 +16,8 @@ services:
       - "5000:8080"
     depends_on:
       - db
+    volumes:
+      - ./archives:/app/archives
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=photobooth;Username=photobooth;Password=changeme"
@@ -26,6 +28,7 @@ services:
       Sftp__BasePath: "/weddings"
       Sftp__PublicBaseUrl: "http://localhost:5000"
       Cors__Origins__0: "http://localhost:5173"
+      Retention__ArchiveRootPath: "/app/archives/events"
 
   web:
     image: ghcr.io/JCTRoth/Photobooth-Management-System/web:latest

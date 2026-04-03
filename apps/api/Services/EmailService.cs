@@ -14,6 +14,13 @@ public interface IEmailService
     Task SendLoginCodeAsync(string to, string code, CancellationToken ct = default);
     Task SendAdminTwoFactorCodeAsync(string to, string code, CancellationToken ct = default);
     Task SendAdminPasswordResetAsync(string to, string loginId, string code, string resetUrl, CancellationToken ct = default);
+    Task SendRetentionWarningEmailAsync(
+        string to,
+        string eventName,
+        DateTime expiresAtUtc,
+        int daysRemaining,
+        string galleryUrl,
+        CancellationToken ct = default);
 }
 
 public class EmailService : IEmailService
@@ -95,6 +102,36 @@ public class EmailService : IEmailService
               <p style="color:#888;font-size:0.85rem">If you did not request this reset, you can ignore this e-mail. Existing admin passwords remain unchanged until a new password is submitted successfully.</p>
             </body></html>
             """;
+        return SendAsync(to, subject, body, ct);
+    }
+
+    public Task SendRetentionWarningEmailAsync(
+        string to,
+        string eventName,
+        DateTime expiresAtUtc,
+        int daysRemaining,
+        string galleryUrl,
+        CancellationToken ct = default)
+    {
+        var safeDaysRemaining = Math.Max(1, daysRemaining);
+        var expirationDate = expiresAtUtc.ToString("yyyy-MM-dd");
+        var subject = $"Photo archive reminder for {eventName}";
+        var body = $"""
+            <html><body style="font-family:sans-serif;max-width:600px;margin:auto">
+              <h2 style="color:#333">Your event gallery will be archived soon</h2>
+              <p>The gallery for <strong>{eventName}</strong> is scheduled for archival in <strong>{safeDaysRemaining} day(s)</strong>.</p>
+              <p>Archival date: <strong>{expirationDate}</strong></p>
+              <p>Please download your ZIP export before archival if you need a local copy.</p>
+              <p style="margin:32px 0">
+                <a href="{galleryUrl}"
+                   style="background:#1f7a5c;color:#fff;padding:14px 28px;text-decoration:none;border-radius:6px;font-size:1rem">
+                  Open gallery
+                </a>
+              </p>
+              <p style="color:#888;font-size:0.85rem">After archival, uploads and live event pages will no longer be active.</p>
+            </body></html>
+            """;
+
         return SendAsync(to, subject, body, ct);
     }
 

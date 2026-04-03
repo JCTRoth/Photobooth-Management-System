@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getEventImages, deleteImage, updateImageCaption, getImageFileUrl } from '@/services/api';
+import { downloadEventZip, getEventImages, deleteImage, updateImageCaption, getImageFileUrl } from '@/services/api';
 import type { ImageResponse } from '@/types/api';
 import { logout } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ export function MyGallery() {
   const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const [captionValue, setCaptionValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -62,12 +63,28 @@ export function MyGallery() {
     navigate('/', { replace: true });
   };
 
+  const handleDownloadEventZip = async () => {
+    if (!eventId) return;
+
+    try {
+      setDownloadingZip(true);
+      await downloadEventZip(eventId, eventName ?? 'event');
+    } catch {
+      setError('Could not download event ZIP. Please try again.');
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   if (!eventId) return null;
 
   return (
     <div>
       <nav className="nav">
         <span className="nav-brand">📸 {eventName ?? 'Wedding Photos'}</span>
+        <button className="btn btn-ghost" onClick={handleDownloadEventZip} disabled={downloadingZip}>
+          {downloadingZip ? 'Preparing ZIP...' : 'Download ZIP'}
+        </button>
         <button className="btn btn-ghost" onClick={handleLogout}>Log out</button>
       </nav>
       <div className="container">

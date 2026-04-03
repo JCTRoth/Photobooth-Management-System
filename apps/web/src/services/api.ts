@@ -226,6 +226,29 @@ export function getZipDownloadUrl(imageId: string): string {
   return `${BASE}/api/download/${imageId}/zip`;
 }
 
+export async function downloadEventZip(eventId: string, eventName?: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/download/events/${eventId}/zip`, { method: 'GET' });
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, 'Failed to download event ZIP'));
+  }
+
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const downloadLink = document.createElement('a');
+
+  const fallbackName = (eventName?.trim() || 'event')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  downloadLink.href = objectUrl;
+  downloadLink.download = `${fallbackName || 'event'}-photos.zip`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 // --- Auth ---
 
 export async function adminLogin(identifier: string, password: string): Promise<AdminLoginResponse> {

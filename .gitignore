@@ -31,6 +31,9 @@ photobooth-device.json
 # Docker
 docker-compose.override.yaml
 
+# Retention archives
+archives/
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/csharp,aspnetcore,react
 # Edit at https://www.toptal.com/developers/gitignore?templates=csharp,aspnetcore,react
