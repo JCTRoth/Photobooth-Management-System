@@ -1,0 +1,5 @@
+{
+  "apiBaseUrl": "https://api.photobooth.example.com",
+  "appName": "Photobooth Management System",
+  "version": "1.0.0"
+}

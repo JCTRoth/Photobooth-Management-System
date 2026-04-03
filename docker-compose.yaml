@@ -11,9 +11,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/JCTRoth/Photobooth-Management-System/api:latest
     ports:
       - "5000:8080"
     depends_on:
@@ -30,9 +28,7 @@ services:
       Cors__Origins__0: "http://localhost:5173"
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/JCTRoth/Photobooth-Management-System/web:latest
     ports:
       - "8080:80"
     depends_on:

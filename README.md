@@ -70,6 +70,20 @@ docs/        Architecture and development documentation
 
 ## Local Development
 
+### Quick Start (Recommended)
+
+To start all components at once:
+
+```bash
+./scripts/start-all.sh
+```
+
+This will start PostgreSQL, apply migrations, and launch the API and web interface.
+
+### Manual Setup
+
+If you prefer to start components individually:
+
 ### 1. Start PostgreSQL
 
 ```bash

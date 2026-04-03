@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +16,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/OWNER/photobooth-api:latest
+          image: ghcr.io/JCTRoth/Photobooth-Management-System/api:latest
           ports:
             - containerPort: 8080
           env:

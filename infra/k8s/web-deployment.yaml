@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/OWNER/photobooth-web:latest
+          image: ghcr.io/JCTRoth/Photobooth-Management-System/web:latest
           ports:
             - containerPort: 80
           resources:
